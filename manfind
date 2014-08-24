@@ -2,11 +2,11 @@
 
 # ----------------------------------------------------------
 
-# binfind
+# manfind
 #
-# Searches for binary files based from the value of PATH.
+# Searches for manual pages based from $MANPATH.
 #
-# Usage: binfind[.sh] <keyword1> [<keyword2> ...]
+# Usage: manfind[.sh] <partstring> [partstring2, ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
@@ -31,22 +31,23 @@ function main {
 	# Check arguments.
 
 	[[ $# -eq 0 || "$1" == "-h" || "$1" == "--help" ]] && {
-		echo "Usage: binfind <partstring> [partstring2, ...]"
+		echo "Usage: manfind <partstring> [partstring2, ...]"
 		return 1
 	}
 
 	# Prepare patterns.
 
 	local A
-	local -a IPATTERNS=(-iname "*$1*")
+	local -a IPATTERNS=()
 
-	for A in "${@:2}"; do
-		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$A*")
+	for A; do
+		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$A*.*.*")
 	done
 
 	# Prepare paths.
 
-	IFS=: read -r -a PATHS <<< "$PATH"
+	local -a PATHS
+	IFS=: read -r -a PATHS <<< "$MANPATH"
 
 	# Make list entries unique.
 
@@ -68,12 +69,12 @@ function main {
 	# Remove unusable entries.
 
 	for I in "${!PATHS[@]}"; do
-		[[ ${PATHS[I]} == *([[:blank:]]) ]] && unset 'PATHS[I]'
+		[[ "${PATHS[I]}" == *([[:blank:]]) ]] && unset 'PATHS[I]'
 	done
 
 	# Find.
 
-	[[ ${#PATHS[@]} -gt 0 ]] && find "${PATHS[@]}" -maxdepth 1 -xtype f "${IPATTERNS[@]}" 2>/dev/null
+	[[ ${#PATHS[@]} -gt 0 ]] && find "${PATHS[@]}" -maxdepth 2 -xtype f -regex '.*/man[^/]+/.*' "${IPATTERNS[@]}" 2>/dev/null
 }
 
 # Start.
