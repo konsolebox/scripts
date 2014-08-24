@@ -12,5 +12,5 @@ if [[ -e "$HOME/.wine/drive_c/Program Files/Notepad++/notepad++.exe" ]]; then
 elif [[ -e "$HOME/.wine/drive_c/Program Files (x86)/Notepad++/notepad++.exe" ]]; then
 	env WINEPREFIX="$HOME/.wine" wine "C:/Program Files (x86)/Notepad++/Notepad++.exe" "$@"
 else
-	echo "Notepadd++.exe can't be found."
+	echo "Notepad++.exe can't be found."
 fi
