@@ -4,7 +4,7 @@ Repository for various scripts I make.
 
 #### binfind.sh
 
-Searches for binary files based from the value of `$PATH`.
+Searches for binary files based on the value of `$PATH`.
 
 #### init/build-and-copy.sh
 
@@ -16,7 +16,7 @@ Searches for library files in `/lib`, `/usr/lib`, `/usr/local/lib` and other pat
 
 #### manfind.sh
 
-Searches for manual pages based from `$MANPATH`.
+Searches for manual pages based on `$MANPATH`.
 
 #### notepad++.sh
 
@@ -24,4 +24,4 @@ I use this wrapper script to easily run wine-emulated Notepad++.
 
 #### rcopy.sh
 
-Copies files along with their dependencies to a virtual root directory.  The resulting file's path is reproduced based from its source.
+Copies files along with their dependencies to a virtual root directory.  The resulting file's path is reproduced based on its source.
