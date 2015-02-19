@@ -2,15 +2,15 @@
 
 # ----------------------------------------------------------
 
-# manfind
+# manfind.sh
 #
-# Searches for manual pages based from $MANPATH.
+# Searches for manual pages based on $MANPATH.
 #
-# Usage: manfind[.sh] <partstring> [partstring2, ...]
+# Usage: manfind[.sh] keyword [keyword2 ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# August 24, 2014
+# February 19, 2015
 
 # ----------------------------------------------------------
 
@@ -28,38 +28,40 @@ shopt -s extglob
 # Place everything inside a function to keep things clean.
 
 function main {
+	local __
+
 	# Check arguments.
 
-	[[ $# -eq 0 || "$1" == "-h" || "$1" == "--help" ]] && {
-		echo "Usage: manfind <partstring> [partstring2, ...]"
+	[[ $# -eq 0 || $1 == '-h' || $1 == '--help' ]] && {
+		echo "Usage: $0 keyword [keyword2 ...]"
 		return 1
 	}
 
 	# Prepare patterns.
 
-	local A
-	local -a IPATTERNS=()
+	local IPATTERNS=()
 
-	for A; do
-		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$A*.*.*")
+	for __; do
+		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$__*.*.*")
 	done
 
 	# Prepare paths.
 
-	local -a PATHS
-	IFS=: read -r -a PATHS <<< "$MANPATH"
+	local PATHS
+	IFS=: read -ra PATHS <<< "$MANPATH"
 
 	# Make list entries unique.
 
-	local -a T=("${!PATHS[@]}")
-	local -i I=0 J C=${#T[@]} D=0
+	local T=("${!PATHS[@]}") I=0 J C=${#T[@]} D=0
+
 	for (( ; I < C; ++I )); do
 		for (( J = I + 1; J < C; ++J )); do
-			[[ ${PATHS[T[I]]} = "${PATHS[T[J]]}" ]] && {
-				unset PATHS\[T\[J\]\] T\[J\]
+			[[ ${PATHS[${T[I]}]} == "${PATHS[${T[J]}]}" ]] && {
+				unset "PATHS[${T[J]}]" 'T[J]'
 				(( ++D ))
 			}
 		done
+
 		[[ D -gt 0 ]] && {
 			T=("${T[@]:I + 1}")
 			(( C -= D + I + 1, I = -1, D = 0 ))
@@ -69,7 +71,7 @@ function main {
 	# Remove unusable entries.
 
 	for I in "${!PATHS[@]}"; do
-		[[ "${PATHS[I]}" == *([[:blank:]]) ]] && unset 'PATHS[I]'
+		[[ ${PATHS[I]} == *([[:blank:]]) ]] && unset 'PATHS[I]'
 	done
 
 	# Find.

@@ -2,16 +2,16 @@
 
 # ----------------------------------------------------------
 
-# libfind
+# libfind.sh
 #
-# Searches for library files in /lib, /usr/lib,
-# /usr/local/lib and other paths found in /etc/ld.so.conf.
+# Finds library files in /lib, /usr/lib, /usr/local/lib, and
+# other directories specified in /etc/ld.so.conf.
 #
-# Usage: libfind[.sh] <partstring> [partstring2, ...]
+# Usage: libfind[.sh] keyword [keyword2 ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# August 24, 2014
+# February 19, 2015
 
 # ----------------------------------------------------------
 
@@ -33,9 +33,7 @@ shopt -s extglob
 # Functions
 
 function getabspath {
-	local -a T1 T2=()
-	local -i I=0
-	local IFS=/ A
+	local T1 T2=() I=0 IFS=/
 
 	if [[ $1 == /* ]]; then
 		read -a T1 <<< "$1"
@@ -43,10 +41,10 @@ function getabspath {
 		read -a T1 <<< "$PWD/$1"
 	fi
 
-	for A in "${T1[@]}"; do
-		case "$A" in
+	for __ in "${T1[@]}"; do
+		case $__ in
 		..)
-			[[ I -gt 0 ]] && unset T2\[--I\]
+			[[ I -gt 0 ]] && unset 'T2[--I]'
 			continue
 			;;
 		.|'')
@@ -54,80 +52,77 @@ function getabspath {
 			;;
 		esac
 
-		T2[I++]=$A
+		T2[I++]=$__
 	done
 
-	if [[ $1 == */ ]]; then
-		if [[ I -ne 0 ]]; then
-			__="/${T2[*]}/"
-		else
-			__=/
-		fi
-	elif [[ I -ne 0 ]]; then
-		__="/${T2[*]}"
-	else
-		__=/.
-	fi
+	case $1 in
+	*/)
+		(( I )) && __="/${T2[*]}/" || __=/
+		;;
+	*)
+		(( I )) && __="/${T2[*]}" || __=/.
+		;;
+	esac
 }
 
 function getlibpaths {
-	local FILE=$1 LINE
+	[[ -f $1 && -r $1 ]] || return
 
-	[[ -f $FILE && -r $FILE ]] || return
-
-	while read LINE; do
-		case "$LINE" in
+	while read __; do
+		case $__ in
 		/*)
-			LIBPATHS[${#LIBPATHS[@]}]=$LINE
+			LIBPATHS[${#LIBPATHS[@]}]=$__
 			;;
 		include\ *)
-			local PATTERN=${LINE##include+([[:blank:]])}
+			local PATTERN=${__##include+([[:blank:]])}
 
 			if [[ $PATTERN != /* ]]; then
-				getabspath "$FILE"
+				getabspath "$1"
 				PATTERN=${__%/*}/${PATTERN}
 			fi
 
-			while read LINE; do
-				getlibpaths "$LINE"
+			while read __; do
+				getlibpaths "$__"
 			done < <(compgen -G "$PATTERN")
 			;;
 		esac
-	done < "$FILE"
+	done < "$1"
 }
 
 function main {
+	local __
+
 	# Check arguments.
 
-	[[ $# -eq 0 || "$1" == "-h" || "$1" == "--help" ]] && {
-		echo "Usage: $0 <partstring> [partstring2, ...]"
+	[[ $# -eq 0 || $1 == '-h' || $1 == '--help' ]] && {
+		echo "Usage: $0 keyword [keyword2 ...]"
 		return 1
 	}
 
 	# Prepare patterns.
 
-	local A
-	local -a IPATTERNS=(-iname "*$1*")
+	local IPATTERNS=(-iname "*$1*"); shift
 
-	for A in "${@:2}"; do
-		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$A*")
+	for __; do
+		IPATTERNS=("${IPATTERNS[@]}" -and -iname "*$__*")
 	done
 
 	# Prepare paths.
 
-	getlibpaths "/etc/ld.so.conf"
+	getlibpaths '/etc/ld.so.conf'
 
 	# Make list unique.
 
-	local -a T=("${!LIBPATHS[@]}")
-	local -i I=0 J C=${#T[@]} D=0
+	local T=("${!LIBPATHS[@]}") I=0 J C=${#T[@]} D=0
+
 	for (( ; I < C; ++I )); do
 		for (( J = I + 1; J < C; ++J )); do
-			[[ ${LIBPATHS[T[I]]} = "${LIBPATHS[T[J]]}" ]] && {
-				unset LIBPATHS\[T\[J\]\] T\[J\]
+			[[ ${LIBPATHS[${T[I]}]} == "${LIBPATHS[${T[J]}]}" ]] && {
+				unset "LIBPATHS[${T[J]}]" 'T[J]'
 				(( ++D ))
 			}
 		done
+
 		[[ D -gt 0 ]] && {
 			T=("${T[@]:I + 1}")
 			(( C -= D + I + 1, I = -1, D = 0 ))
@@ -143,7 +138,7 @@ function main {
 	# Remove directories that do not exist, are not readable, or is not executable.
 
 	for I in "${!LIBPATHS[@]}"; do
-		[[ -d "${LIBPATHS[I]}" && -r "${LIBPATHS[I]}" && -x "${LIBPATHS[I]}" ]] || unset 'LIBPATHS[I]'
+		[[ -d ${LIBPATHS[I]} && -r ${LIBPATHS[I]} && -x ${LIBPATHS[I]} ]] || unset 'LIBPATHS[I]'
 	done
 
 	# Find.
