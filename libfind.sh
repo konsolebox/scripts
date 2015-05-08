@@ -4,14 +4,17 @@
 
 # libfind.sh
 #
-# Finds library files in /lib, /usr/lib, /usr/local/lib, and
-# other directories specified in /etc/ld.so.conf.
+# Finds library files directories specified in /etc/ld.so.conf.
+#
+# If no directory paths are found, search in /lib, /usr/lib and
+# /usr/local/lib instead.  Those can be changed by changing the
+# values of DEFAULT_LIBPATHS.
 #
 # Usage: libfind[.sh] keyword [keyword2 ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# February 19, 2015
+# May 8, 2015
 
 # ----------------------------------------------------------
 
@@ -22,9 +25,13 @@
 	return 1
 }
 
+# The variable.
+
+LIBPATHS=()
+
 # Default paths to search from.
 
-LIBPATHS=(/lib /usr/lib /usr/local/lib)
+DEFAULT_LIBPATHS=(/lib /usr/lib /usr/local/lib)
 
 # Enable extended patterns.
 
@@ -111,29 +118,35 @@ function main {
 
 	getlibpaths '/etc/ld.so.conf'
 
-	# Make list unique.
+	if [[ ${#LIBPATHS[@]} -eq 0 ]]; then
+		# Use default list.
 
-	local T=("${!LIBPATHS[@]}") I=0 J C=${#T[@]} D=0
+		LIBPATHS=("${DEFAULT_LIBPATHS[@]}")
+	else
+		# Make list unique.
 
-	for (( ; I < C; ++I )); do
-		for (( J = I + 1; J < C; ++J )); do
-			[[ ${LIBPATHS[${T[I]}]} == "${LIBPATHS[${T[J]}]}" ]] && {
-				unset "LIBPATHS[${T[J]}]" 'T[J]'
-				(( ++D ))
+		local T=("${!LIBPATHS[@]}") I=0 J C=${#T[@]} D=0
+
+		for (( ; I < C; ++I )); do
+			for (( J = I + 1; J < C; ++J )); do
+				[[ ${LIBPATHS[${T[I]}]} == "${LIBPATHS[${T[J]}]}" ]] && {
+					unset "LIBPATHS[${T[J]}]" 'T[J]'
+					(( ++D ))
+				}
+			done
+
+			[[ D -gt 0 ]] && {
+				T=("${T[@]:I + 1}")
+				(( C -= D + I + 1, I = -1, D = 0 ))
 			}
 		done
 
-		[[ D -gt 0 ]] && {
-			T=("${T[@]:I + 1}")
-			(( C -= D + I + 1, I = -1, D = 0 ))
-		}
-	done
+		# Remove unusable entries.
 
-	# Remove unusable entries.
-
-	for I in "${!LIBPATHS[@]}"; do
-		[[ ${LIBPATHS[I]} == *([[:blank:]]) ]] && unset 'LIBPATHS[I]'
-	done
+		for I in "${!LIBPATHS[@]}"; do
+			[[ ${LIBPATHS[I]} == *([[:blank:]]) ]] && unset 'LIBPATHS[I]'
+		done
+	fi
 
 	# Remove directories that do not exist, are not readable, or is not executable.
 
