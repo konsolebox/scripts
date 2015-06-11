@@ -13,7 +13,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 17, 2015
+# May 22, 2015
 
 # ----------------------------------------------------------
 
@@ -27,10 +27,11 @@
 
 CP_OPTS=()
 FILE_ARGS=()
+HARD_LINK_MODE=false
 TARGET_ROOT=''
 VERBOSE=false
 QUIET=false
-VERSION=2015-05-17
+VERSION=2015-05-22
 
 declare -A PROCESSED=()
 
@@ -59,6 +60,7 @@ Usage: $0 [options] -t directory source ...
        $0 [options] source ... directory
 echo
   -h, --help       Show this help info.
+  -H, --hard-link  Hard-link files instead of copying.
   -q, --quiet      Show no message.
   -v, --verbose    Be verbose.
   -V, --version    Show version."
@@ -112,9 +114,16 @@ function process {
 		fi
 
 		if [[ -z ${PROCESSED[$__]} ]]; then
-			log_message "Copying \"$__\" to \"${DEST_DIR}\"."
-			log_verbose "Command: cp ${CP_OPTS[*]} -a -- \"$__\" \"${DEST_DIR}\""
-			MESSAGES=$(cp "${CP_OPTS[@]}" -a -- "$__" "${DEST_DIR}" 2>&1)
+			if [[ ${HARD_LINK_MODE} == true ]]; then
+				log_message "Hard-linking \"$__\" to \"${DEST_DIR}\"."
+				log_verbose "Command: cp ${CP_OPTS[*]} -a -H -- \"$__\" \"${DEST_DIR}\""
+				MESSAGES=$(cp "${CP_OPTS[@]}" -a -H -- "$__" "${DEST_DIR}" 2>&1)
+			else
+				log_message "Copying \"$__\" to \"${DEST_DIR}\"."
+				log_verbose "Command: cp ${CP_OPTS[*]} -a -- \"$__\" \"${DEST_DIR}\""
+				MESSAGES=$(cp "${CP_OPTS[@]}" -a -- "$__" "${DEST_DIR}" 2>&1)
+			fi
+
 			RESULT=$?
 
 			if [[ -n ${MESSAGES} ]]; then
@@ -136,6 +145,9 @@ while [[ $# -gt 0 ]]; do
 	-h|--help)
 		show_help_info
 		exit 1
+		;;
+	-H|--hard-link)
+		HARD_LINK_MODE=true
 		;;
 	-q|--quiet)
 		QUIET=true
