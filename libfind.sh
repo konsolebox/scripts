@@ -14,11 +14,11 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 13, 2015
+# June 11, 2015
 
 # ----------------------------------------------------------------------
 
-VERSION='2015-05-13'
+VERSION='2015-06-11'
 
 [[ ${BASH_VERSINFO} -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
@@ -60,34 +60,45 @@ instead.
 Usage: $0 [options] [-e] expression [[--] expression ...]
 
 Use of common paths:
-  -c               Search in common library directories instead of those
-                   specified in /etc/ld.so.conf.
-  -C               Same as -c but adds the common library directories
-                   into the list derived from /etc/ld.so.conf.
+  -c                Search in common library directories instead of those
+                    specified in /etc/ld.so.conf.
+  -C                Same as -c but adds the common library directories
+                    into the list derived from /etc/ld.so.conf.
 
-Expression Types:
-      --awk        Treat all expressions as Awk regular expressions.
-      --egrep      Treat all expressions as egrep expressions.
-      --emacs      Treat all expressions as Emacs regular expressions.
-  -E, --extended   Treat all expressions as extended regular expressions.
-  -r, --regex      Treat all expressions as basic regular expressions.
-  -x, --exact      Treat all expressions as exact glob patterns.  No
-                   extra wildcard character is added before and after
-                   the keyword.
-  -s               Treat all expressions as case sensitive.  This option
-                   can co-exist with other expression type options.
+Glob-based Types:
+  -p, --path        Treat all expressions as keywords that would match
+                    against the whole path and not just the filename.
+  -x, --exact       Treat all expressions as exact glob patterns.  No
+                    extra wildcard character is added before or after
+                    the keyword.
+  -X, --exact-path  Same as -x but the glob pattern would apply to the
+                    whole path and not just the filename.
+
+Regex-based Types:
+      --awk         Treat all expressions as Awk regular expressions.
+      --egrep       Treat all expressions as egrep expressions.
+      --emacs       Treat all expressions as Emacs regular expressions.
+  -E, --extended    Treat all expressions as extended regular expressions.
+  -r, --regex       Treat all expressions as basic regular expressions.
+
+Modifiers:
+  -s                Treat all expressions as case sensitive.  This option
+                    can co-exist with other expression type options.
 
 Others:
-  -e               Imply that the following argument is an expression.
-  -h, --help       Show this help info.
-  -v, --verbose    Be verbose.  (Doesn't really do anything yet.)
-  -V, --version    Show version.
+  -e                Imply that the following argument is an expression.
+  -h, --help        Show this help info.
+  -v, --verbose     Be verbose.  (Doesn't really do anything yet.)
+  -V, --version     Show version.
 
-Only one of -E, -r and -x can become effective and it would affect all
-expressions including the ones specified before them.
+Notes:
 
-Regex-based expression types rely on find's -regex so they would match a
-whole pathname and not just a file's filename.
+Only one of --awk, --egrep, --emacs, -E, -r, -p, -x and -X can become
+effective, and it would affect all expressions including the ones specified
+before them.
+
+Regex-based expression types rely on find's -regex so they match a whole
+pathname and not just a file's filename.
 
 When no expression type is specified, it defaults to glob patterns." >&2
 }
@@ -149,7 +160,7 @@ function get_lib_paths {
 }
 
 function fail {
-	printf '%s\n' "$1" >&2
+	printf '%s\n' "$@" >&2
 	exit 1
 }
 
@@ -172,11 +183,17 @@ function main {
 		-E|--extended)
 			MODE=extended
 			;;
+		-p|--path)
+			MODE=path
+			;;
 		-r|--regex)
 			MODE=basic
 			;;
 		-x|--exact)
 			MODE=exact_pattern
+			;;
+		-X)
+			MODE=exact_path_pattern
 			;;
 		-s)
 			CASE_SENSITIVE=true
@@ -214,6 +231,15 @@ function main {
 
 	[[ ${#EXPRESSIONS[@]} -eq 0 ]] && fail "No expression was specified."
 
+	if [[ ${MODE} == @(default|exact_pattern) ]]; then
+		for __ in "${EXPRESSIONS[@]}"; do
+			[[ $__ == */* ]] && \
+				fail \
+					"You can't include a backslash character (/) when matching against a filename." \
+					"Please run libfind with --help to see other search methods."
+		done
+	fi
+
 	if [[ ${USE_OR_ADD_COMMON_PATHS} == use ]]; then
 		LIB_PATHS=("${COMMON_LIB_PATHS[@]}")
 	else
@@ -247,11 +273,12 @@ function main {
 
 	[[ ${#LIB_PATHS[@]} -eq 0 ]] && return 1
 
-	local NAME_OPT='-iname' REGEX_OPT='-iregex'
+	local NAME_OPT='-iname' PATH_OPT='-ipath' REGEX_OPT='-iregex'
 
 	if [[ ${CASE_SENSITIVE} == true ]]; then
 		NAME_OPT='-name'
 		REGEX_OPT='-regex'
+		PATH_OPT='-path'
 	fi
 
 	local EXPR_OPT=${NAME_OPT} REGEX_TYPE_ARGS=() ADD_WILDCARDS=true
@@ -286,6 +313,15 @@ function main {
 		EXPR_OPT=${NAME_OPT}
 		REGEX_TYPE_ARGS=()
 		ADD_WILDCARDS=false
+		;;
+	exact_path_pattern)
+		EXPR_OPT=${PATH_OPT}
+		REGEX_TYPE_ARGS=()
+		ADD_WILDCARDS=false
+		;;
+	path)
+		EXPR_OPT=${PATH_OPT}
+		REGEX_TYPE_ARGS=()
 		;;
 	esac
 
