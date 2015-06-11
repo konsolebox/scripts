@@ -13,7 +13,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 22, 2015
+# June 11, 2015
 
 # ----------------------------------------------------------
 
@@ -31,7 +31,7 @@ HARD_LINK_MODE=false
 TARGET_ROOT=''
 VERBOSE=false
 QUIET=false
-VERSION=2015-05-22
+VERSION=2015-06-11
 
 declare -A PROCESSED=()
 
@@ -55,10 +55,10 @@ function fail {
 function show_help_info {
 	echo "Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based from its source.
-echo
+
 Usage: $0 [options] -t directory source ...
        $0 [options] source ... directory
-echo
+
   -h, --help       Show this help info.
   -H, --hard-link  Hard-link files instead of copying.
   -q, --quiet      Show no message.
