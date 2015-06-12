@@ -13,10 +13,8 @@ A script I ended up making to automate building of my custom initrd.
 #### libfind.sh
 
 Finds library files by keywords or expressions in directories specified
-by /etc/ld.so.conf and its subfiles.  Expressions can be in the form of
-normal patterns, regular expressions, or extended regular expressions
-which can be changed through an option.  It also has an integrated list
-of common directories that can be used over those specified in files.
+by /etc/ld.so.conf and its subfiles, or in common library directories
+specified in an integrated list.
 
 #### manfind.sh
 
@@ -30,3 +28,7 @@ I use this wrapper script to easily run wine-emulated Notepad++.
 
 Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based on its source.
+
+#### uuidfstab.sh
+
+Converts device paths in a fstab file to UUID forms.
