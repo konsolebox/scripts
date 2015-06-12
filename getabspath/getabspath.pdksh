@@ -1,0 +1,54 @@
+getabspath() {
+	typeset A T IFS=/ TOKENS I=0 J=0
+
+	A=${1%/}
+
+	if [[ -n $A ]]; then
+		while :; do
+			T=${A%%/*}
+
+			case $T in
+			..)
+				if [[ I -gt 0 ]]; then
+					unset 'TOKENS[--I]'
+				else
+					(( ++J ))
+				fi
+				;;
+			.|'')
+				;;
+			*)
+				TOKENS[I++]=$T
+				;;
+			esac
+
+			case $A in
+			*/*)
+				A=${A#*/}
+				;;
+			*)
+				break
+				;;
+			esac
+		done
+	fi
+
+	__="/${TOKENS[*]}"
+
+	if [[ $1 != /* ]]; then
+		A=${PWD%/}
+
+		while [[ J -gt 0 && -n $A ]]; do
+			A=${A%/*}
+			(( --J ))
+		done
+
+		[[ -n $A ]] && __=${A}${__%/}
+	fi
+
+	if [[ $__ == / ]]; then
+		[[ $1 != */ ]] && __=/.
+	elif [[ $1 == */ ]]; then
+		__=$__/
+	fi
+}

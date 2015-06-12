@@ -6,6 +6,12 @@ Repository for various scripts I make.
 
 Searches for binary files based on the value of `$PATH`.
 
+#### getabspath/*
+
+Scripts that implement getabspath() for various shells.  getabspath() is a
+function for shell scripts that's intended to get the strict absolute form
+of a path without relying on an external commands if possible.
+
 #### init/build-and-copy.sh
 
 A script I ended up making to automate building of my custom initrd.

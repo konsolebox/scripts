@@ -1,0 +1,35 @@
+function getabspath {
+	local T=() I=0 IFS=/
+
+	case $1 in
+	/*)
+		__=$1
+		;;
+	*)
+		__=/${PWD}/$1
+		;;
+	esac
+
+	while read -r -d / __; do
+		case "$__" in
+		..)
+			[[ I -ne 0 ]] && unset 'T[--I]'
+			continue
+			;;
+		.|'')
+			continue
+			;;
+		esac
+
+		T[I++]=$__
+	done <<< "$__/"
+
+	case $1 in
+	*/)
+		[[ I -ne 0 ]] && __="/${T[*]}/" || __=/
+		;;
+	*)
+		[[ I -ne 0 ]] && __="/${T[*]}" || __=/.
+		;;
+	esac
+}
