@@ -11,9 +11,11 @@
 # Usage: rcopy[.sh] [options] -t directory source ...
 #        rcopy[.sh] [options] source ... directory
 #
+# Disclaimer: This tool comes with no warranty.
+#
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 11, 2015
+# June 12, 2015
 
 # ----------------------------------------------------------
 
@@ -31,7 +33,7 @@ HARD_LINK_MODE=false
 TARGET_ROOT=''
 VERBOSE=false
 QUIET=false
-VERSION=2015-06-11
+VERSION=2015-06-12
 
 declare -A PROCESSED=()
 
@@ -63,7 +65,9 @@ Usage: $0 [options] -t directory source ...
   -H, --hard-link  Hard-link files instead of copying.
   -q, --quiet      Show no message.
   -v, --verbose    Be verbose.
-  -V, --version    Show version."
+  -V, --version    Show version.
+
+Disclaimer: This tool comes with no warranty."
 }
 
 function get_clean_path {
