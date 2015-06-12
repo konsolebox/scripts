@@ -6,13 +6,18 @@
 #
 # Converts device paths in a fstab file to UUID forms.
 #
-# Usage: uuidfstab[.sh] fstab_file [output]
+# Usage: uuidfstab[.sh] [--] fstab_file [output]
+#        uuidfstab[.sh] <-h | --help | -V | --version>
+#
+# Disclaimer: This tool comes with no warranty.
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 11, 2015
+# June 12, 2015
 
 # ----------------------------------------------------------------------
+
+VERSION=2015-06-12
 
 function log {
 	printf '%s\n' "$@" >&2
@@ -22,14 +27,17 @@ function show_usage_and_exit {
 	log "Converts device paths in a fstab file to UUID forms.
 
 Usage: $0 [--] fstab_file [output]
+       $0 <-h | --help | -V | --version>
 
-If output is not specified, uuidfstab would write changes to fstab_file
-instead.
+Notes:
+1) If output is not specified, uuidfstab would write changes to a temporary
+   file and then save it to fstab_file instead.
+2) Specifying '-' for the output specifies /dev/stdout.
+3) All messages coming from uuidfstab are sent to file descriptor 2 or
+   /dev/stderr.
 
-Specifying '-' for the output is the same as specifying /dev/stdout.
+Disclaimer: This tool comes with no warranty."
 
-All messages coming from uuidfstab are sent to file descriptor 2 or
-/dev/stderr."
 	exit 1
 }
 
@@ -43,6 +51,10 @@ function main {
 		case $__ in
 		--)
 			break
+			;;
+		-V|--version)
+			log "${VERSION}"
+			exit 1
 			;;
 		-h|--help)
 			show_usage_and_exit
@@ -72,6 +84,8 @@ function main {
 
 	shopt -s extglob
 
+	[[ -f ${FSTAB_FILE} && -r ${FSTAB_FILE} ]] || fail "Fstab file ${FSTAB_FILE} does not exist or is not readable."
+
 	log "Processing ${FSTAB_FILE} and writing output to ${OUTPUT_FILE}."
 
 	while read -r LINE; do
@@ -89,7 +103,7 @@ function main {
 		fi
 
 		[[ ${PRINTED} = false ]] && echo "${LINE}" >&3
-	done < "${FSTAB_FILE}" 3> "${OUTPUT_FILE}"
+	done < "${FSTAB_FILE}" 3> "${OUTPUT_FILE}" || fail "Failed."
 
 	if [[ -z ${SPECIFIED_OUTPUT} ]]; then
 		log "Saving output from ${TEMP_FILE} to ${FSTAB_FILE}."
@@ -98,6 +112,8 @@ function main {
 	fi
 
 	log "Done."
+
+	return 0
 }
 
 main "$@"
