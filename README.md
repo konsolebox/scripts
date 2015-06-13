@@ -35,6 +35,12 @@ I use this wrapper script to easily run wine-emulated Notepad++.
 Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based on its source.
 
+#### tcpdump-master.sh
+
+The script is a tcpdump service starter and manager.  It can also
+automatically delete files older than C days, and reduce the size of
+the main log file if it's already larger than N bytes.
+
 #### uuidfstab.sh
 
 Converts device paths in a fstab file to UUID forms.
