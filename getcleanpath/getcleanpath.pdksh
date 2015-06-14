@@ -1,0 +1,48 @@
+getcleanpath() {
+	typeset A B IFS=/ T I=0 J=0
+
+	A=${1%/}
+
+	if [[ -n $A ]]; then
+		while :; do
+			B=${A%%/*}
+
+			case $B in
+			..)
+				if [[ I -gt 0 ]]; then
+					unset 'T[--I]'
+				else
+					(( ++J ))
+				fi
+				;;
+			.|'')
+				;;
+			*)
+				T[I++]=$B
+				;;
+			esac
+
+			case $A in
+			*/*)
+				A=${A#*/}
+				;;
+			*)
+				break
+				;;
+			esac
+		done
+	fi
+
+	__="/${T[*]}"
+
+	if [[ $1 != /* ]]; then
+		A=${PWD%/}
+
+		while [[ J -gt 0 && -n $A ]]; do
+			A=${A%/*}
+			(( --J ))
+		done
+
+		[[ -n $A ]] && __=${A}${__%/}
+	fi
+}

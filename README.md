@@ -8,9 +8,19 @@ Searches for binary files based on the value of `$PATH`.
 
 #### getabspath/*
 
-Scripts that implement getabspath() for various shells.  getabspath() is a
-function for shell scripts that's intended to get the strict absolute form
-of a path without relying on an external commands if possible.
+Scripts that implement getabspath() for various shells.  getabspath() is
+a function for shell scripts that's intended to get the strict absolute
+form of a path *(strict in a sense that the resulting path would remain
+consistent even if another item is appended unto it)*, without relying
+on an external command if possible.
+
+#### getcleanpath/*
+
+Scripts that implement getcleanpath() for various shells. 
+getcleanpath() is similar to getabspath() but it doesn't care about the
+format of its input to base on for its output.  It would always produce
+an output similar to realpath where the path would never end in / unless
+it's the root directory itself.
 
 #### init/build-and-copy.sh
 
