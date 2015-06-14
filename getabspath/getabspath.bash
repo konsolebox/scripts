@@ -6,7 +6,7 @@ function getabspath {
 		read -r -a T1 <<< "$1"
 		;;
 	*)
-		read -r -a T1 <<< "/${PWD}/$1"
+		read -r -a T1 <<< "${PWD}/$1"
 		;;
 	esac
 

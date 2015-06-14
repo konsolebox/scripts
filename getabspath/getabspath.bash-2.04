@@ -6,7 +6,7 @@ function getabspath {
 		__=$1
 		;;
 	*)
-		__=/${PWD}/$1
+		__=${PWD}/$1
 		;;
 	esac
 

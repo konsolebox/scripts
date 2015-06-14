@@ -1,16 +1,16 @@
 getabspath() {
-	typeset A T IFS=/ TOKENS I=0 J=0
+	typeset A B I=0 J=0 T IFS=/
 
 	A=${1%/}
 
 	if [[ -n $A ]]; then
 		while :; do
-			T=${A%%/*}
+			B=${A%%/*}
 
-			case $T in
+			case $B in
 			..)
 				if [[ I -gt 0 ]]; then
-					unset 'TOKENS[--I]'
+					unset 'T[--I]'
 				else
 					(( ++J ))
 				fi
@@ -18,7 +18,7 @@ getabspath() {
 			.|'')
 				;;
 			*)
-				TOKENS[I++]=$T
+				T[I++]=$B
 				;;
 			esac
 
@@ -33,7 +33,7 @@ getabspath() {
 		done
 	fi
 
-	__="/${TOKENS[*]}"
+	__="/${T[*]}"
 
 	if [[ $1 != /* ]]; then
 		A=${PWD%/}

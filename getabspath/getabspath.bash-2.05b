@@ -6,12 +6,12 @@ function getabspath {
 		__=$1
 		;;
 	*)
-		__=/${PWD}/$1
+		__=${PWD}/$1
 		;;
 	esac
 
 	while read -r -d / __; do
-		case "$__" in
+		case $__ in
 		..)
 			[[ I -ne 0 ]] && unset 'T[--I]'
 			continue
