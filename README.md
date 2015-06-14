@@ -16,6 +16,13 @@ of a path without relying on an external commands if possible.
 
 A script I ended up making to automate building of my custom initrd.
 
+#### killtree.sh
+
+Sends signals to process trees with style.
+
+The script also contains reusable functions for working with process
+trees.
+
 #### libfind.sh
 
 Finds library files by keywords or expressions in directories specified
