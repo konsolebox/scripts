@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 14, 2015
+# Dec. 15, 2015
 
 # ----------------------------------------------------------
 
@@ -140,7 +140,7 @@ Options:
   -h, --help           Show this help message.
   -o, --one-at-a-time  Send signal to a process every after it gets its
                        child processes enumerated.
-  -r, --reverse        Process child processes first before its parents.
+  -r, --reverse        Process child processes first before parents.
   -s, --signal SIGNAL  Specify the signal to be sent to every process.
                        The default is SIGTERM.
   -v, --verbose        Be verbose.  
