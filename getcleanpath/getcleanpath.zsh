@@ -1,8 +1,6 @@
 function getcleanpath {
-	local TOKENS I IFS=/ T
-	set -A TOKENS
-
-	__=$1
+	local T I=0 IFS=/
+	set -A T
 
 	case $1 in
 	/*)
@@ -13,10 +11,10 @@ function getcleanpath {
 		;;
 	esac
 
-	for T; do
-		case $T in
+	for __; do
+		case $__ in
 		..)
-			[[ I -ne 0 ]] && TOKENS[I--]=()
+			[[ I -ne 0 ]] && T[I--]=()
 			continue
 			;;
 		.|'')
@@ -24,15 +22,8 @@ function getcleanpath {
 			;;
 		esac
 
-		TOKENS[++I]=$T
+		T[++I]=$__
 	done
 
-	case $__ in
-	*/)
-		[[ I -ne 0 ]] && __="/${TOKENS[*]}/" || __=/
-		;;
-	*)
-		[[ I -ne 0 ]] && __="/${TOKENS[*]}" || __=/.
-		;;
-	esac
+	__="/${T[*]}"
 }
