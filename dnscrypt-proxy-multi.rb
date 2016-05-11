@@ -10,8 +10,8 @@
 # it as target remote services when creating instances of
 # dnscrypt-proxy.  Remote services are checked for
 # availability before an instance of dnscrypt-proxy is used
-# to connect to them.  An FQDN can also be used for to check
-# if remote services can resolve names.
+# to connect to them.  An FQDN can also be used to check if
+# a remote service can resolve names.
 #
 # The script waits for all instances to exit before it
 # exits.  It also automaticaly stops them when it receives
@@ -36,8 +36,10 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-04-30'
+VERSION = '2016-05-06'
 INSTANCES_LIMIT = 50
+WAIT_FOR_CONNECTION_TIMEOUT = 5
+WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
 
 @log_buffer = []
 @log_file = nil
@@ -45,12 +47,12 @@ INSTANCES_LIMIT = 50
 @exit_status = 1
 
 @params = Struct.new(
-  :change_owner, :debug, :dnscrypt_proxy, :ignore_ip_format,
-  :local_ip_range, :local_port_range, :log, :log_dir, :log_file,
-  :log_level, :log_overwrite, :max_instances, :port_check_async,
-  :port_check_timeout, :resolvers_list, :resolvers_list_encoding,
-  :resolver_check, :resolver_check_timeout, :resolver_check_wait,
-  :user, :verbose, :wait_before_next, :write_pids, :write_pids_dir
+  :change_owner, :debug, :dnscrypt_proxy, :ignore_ip_format, :instance_delay,
+  :local_ip_range, :local_port_range, :log, :log_dir, :log_file, :log_level,
+  :log_overwrite, :max_instances, :port_check_async, :port_check_timeout,
+  :resolvers_list, :resolvers_list_encoding, :resolver_check,
+  :resolver_check_timeout, :resolver_check_wait, :user, :verbose,
+  :wait_for_connection, :write_pids, :write_pids_dir
 ).new
 
 def initialize_params
@@ -58,6 +60,7 @@ def initialize_params
   @params.debug = false
   @params.dnscrypt_proxy = which('dnscrypt-proxy')
   @params.ignore_ip_format = false
+  @params.instance_delay = 0.0
   @params.local_ip_range = '127.0.100.1-254'
   @params.local_port_range = '53'
   @params.log = false
@@ -75,7 +78,7 @@ def initialize_params
   @params.resolver_check_wait = 0.1
   @params.user = nil
   @params.verbose = false
-  @params.wait_before_next = 0.0
+  @params.wait_for_connection = nil
   @params.write_pids = false
   @params.write_pids_dir = '/var/run/dnscrypt-proxy-multi'
 end
@@ -196,8 +199,51 @@ end
 def valid_fqdn?(name)
   return false if name =~ /\.\./ or name =~ /^\./
   labels = name.split('.')
-  return false if labels.size < 2 or labels.detect{ |e| not e =~ /^[[:alnum:]-]+$/ }
+  labels.size > 1 and labels.all? do |e|
+    e =~ /^[[:alnum:]]+$/ or e =~ /^[[:alnum:]]+[[:alnum:]-]+[[:alnum:]]+$/
+  end
+end
+
+def is_host_valid?(host)
+  octets = host.split('.')
+
+  if octets.last =~ /^[[:digit:]]+$/
+    return false unless octets.size == 4
+
+    octets.each_with_index do |e, i|
+      n = Integer(e) rescue nil
+      return false unless n and n < 255
+      return false if (i == 0 or i == 3) and n == 0
+    end
+  else
+    return false unless octets.all? do |e|
+      e =~ /^[[:alnum:]]+$/ or e =~ /^[[:alnum:]]+[[:alnum:]-]+[[:alnum:]]+$/
+    end
+  end
+
   true
+end
+
+def wait_for_connection
+  log_message "Waiting for connection."
+
+  while true
+    @params.wait_for_connection.each do |host, port|
+      begin
+        if port
+          begin
+            return if check_tcp_port(host, port, WAIT_FOR_CONNECTION_TIMEOUT)
+          rescue SocketError => ex
+            fail "Failed to wait for connection: #{ex.message}"
+          end
+        else
+          Net::Ping::ICMP.new(host, WAIT_FOR_CONNECTION_TIMEOUT).ping
+        end
+      rescue Errno::ENETUNREACH
+        sleep WAIT_FOR_CONNECTION_NETUNREACH_PAUSE
+      end
+    end
+  end
 end
 
 module RangeCommon
@@ -365,7 +411,7 @@ Runs multiple instances of dnscrypt-proxy.
 Usage: #{$0} [options]
 
 Options:"
-    $stderr.puts parser.summarize([], 3, 80, "")
+    $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }
     $stderr.puts
     $stderr.puts "Notes:"
     $stderr.puts "* Directories are automatically created recursively when needed."
@@ -380,7 +426,11 @@ Options:"
     exit 1
   end
 
-  parser.on("-c", "--resolver-check=FQDN[/TIMEOUT[/WAIT]]", "Check instances of dnscrypt-proxy if they can resolve FQDN, and replace them", "with another instance that targets another resolver entry if they don't.", "Default timeout is #{@params.resolver_check_timeout}.  Default amount of wait-time to allow an instance to", "load and initialize before checking it is #{@params.resolver_check_wait}.") do |fqdn_timeout|
+  parser.on("-c", "--resolver-check=FQDN[/TIMEOUT[/WAIT]]",
+  "Check instances of dnscrypt-proxy if they can resolve FQDN, and replace them",
+  "with another instance that targets another resolver entry if they don't.",
+  "Default timeout is #{@params.resolver_check_timeout}.  Default amount of wait-time to allow an instance to",
+  "load and initialize before checking it is #{@params.resolver_check_wait}.") do |fqdn_timeout|
     fqdn, timeout, wait = fqdn_timeout.split('/')
 
     if timeout and not timeout.empty?
@@ -401,16 +451,25 @@ Options:"
     @params.change_owner = true
   end
 
-  parser.on("-d", "--dnscrypt-proxy=PATH", "Set path to dnscrypt-proxy executable.", "Default is \"#{@params.dnscrypt_proxy}\".") do |path|
+  parser.on("-d", "--dnscrypt-proxy=PATH", "Set path to dnscrypt-proxy executable.",
+  "Default is \"#{@params.dnscrypt_proxy}\".") do |path|
     fail "Not executable or does not exist: #{path}" unless executable_file?(path)
     @params.dnscrypt_proxy = path
   end
 
-  parser.on("-D", "--debug", "Show debug messages.") do
+  parser.on("-D", "--instance-delay=SECONDS",
+  "Wait SECONDS seconds before creating the next instance of dnscrypt-proxy.",
+  "Default is #{@params.instance_delay}.") do |secs|
+    @params.instance_delay = Float(secs) rescue fail("Invalid value for instance-wait: #{secs}.")
+  end
+
+  parser.on("-g", "--debug", "Show debug messages.") do
     @params.debug = true
   end
 
-  parser.on("-i", "--local-ip=RANGE", "Set range of IP addresses to listen to.  Default is \"#{@params.local_ip_range}\".", "Example: \"127.0.1-254.1-254,10.0.0.1\"") do |range|
+  parser.on("-i", "--local-ip=RANGE",
+  "Set range of IP addresses to listen to.  Default is \"#{@params.local_ip_range}\".",
+  "Example: \"127.0.1-254.1-254,10.0.0.1\"") do |range|
     @params.local_ip_range = range
   end
 
@@ -418,24 +477,29 @@ Options:"
     @params.ignore_ip_format = true
   end
 
-  parser.on("-l", "--log [LOG_DIR]", "Enable logging files to LOG_DIR.", "Default directory is \"#{@params.log_dir}\".") do |dir|
+  parser.on("-l", "--log[=LOG_DIR]", "Enable logging files to LOG_DIR.",
+  "Default directory is \"#{@params.log_dir}\".") do |dir|
     @params.log = true
     @params.log_dir = dir if dir
   end
 
-  parser.on("-L", "--log-level=LEVEL", "When logging is enabled, tell dnscrypt-proxy to use log level LEVEL.", "Default level is #{@params.log_level}.  See dnscrypt-proxy(8) for info.") do |level|
+  parser.on("-L", "--log-level=LEVEL",
+  "When logging is enabled, tell dnscrypt-proxy to use log level LEVEL.",
+  "Default level is #{@params.log_level}.  See dnscrypt-proxy(8) for info.") do |level|
     fail "Value for log level an unsigned integer: #{level}" unless level =~ /^[[:digit:]]+$/
     @params.log_level = Integer(level)
   end
 
-  parser.on("-m", "--max-instances=N", "Set maximum number of dnscrypt-proxy instances.  Default is #{@params.max_instances}.") do |n|
+  parser.on("-m", "--max-instances=N",
+  "Set maximum number of dnscrypt-proxy instances.  Default is #{@params.max_instances}.") do |n|
     fail "Value for max instances must be an unsigned integer: #{n}" unless n =~ /^[[:digit:]]+$/
     n = Integer(n)
     fail "Value for max instances cannot be 0 or greater than #{INSTANCES_LIMIT}: #{n}" if n.zero? or n > INSTANCES_LIMIT
     @params.max_instances = n
   end
 
-  parser.on("-o", "--log-output=FILE", "When logging is enabled, write main log output to FILE.",  "Default is \"<LOG_DIR>/dnscrypt-proxy-multi.log\".") do |file|
+  parser.on("-o", "--log-output=FILE", "When logging is enabled, write main log output to FILE.",
+  "Default is \"<LOG_DIR>/dnscrypt-proxy-multi.log\".") do |file|
     @params.log_file = file
   end
 
@@ -443,33 +507,38 @@ Options:"
     @params.log_overwrite = true
   end
 
-  parser.on("-p", "--local-port=RANGE", "Set range of ports to listen to.", "Default is \"#{@params.local_port_range}\".  Example: \"2053,5300-5399\"") do |range|
+  parser.on("-p", "--local-port=RANGE", "Set range of ports to listen to.",
+  "Default is \"#{@params.local_port_range}\".  Example: \"2053,5300-5399\"") do |range|
     @params.local_port_range = range
   end
 
-  parser.on("-r", "--resolvers-list=PATH", "Set resolvers list file to use.", "Default is \"#{@params.resolvers_list}\".") do |path|
+  parser.on("-r", "--resolvers-list=PATH", "Set resolvers list file to use.",
+  "Default is \"#{@params.resolvers_list}\".") do |path|
     fail "Not a readable file: #{path}" unless File.file?(path) and File.readable?(path)
     @params.resolvers_list = path
   end
 
-  parser.on("-R", "--resolvers-list-encoding", "Set encoding of resolvers list.  Default is \"#{@params.resolvers_list_encoding}\".") do |e|
+  parser.on("-R", "--resolvers-list-encoding",
+  "Set encoding of resolvers list.  Default is \"#{@params.resolvers_list_encoding}\".") do |e|
     @params.resolvers_list_encoding = e
   end
 
-  parser.on("-s", "--port-check-async=N", "Set number of port-check queries to send simultaneously.  Default is #{@params.port_check_async}.") do |n|
+  parser.on("-s", "--port-check-async=N",
+  "Set number of port-check queries to send simultaneously.  Default is #{@params.port_check_async}.") do |n|
     fail "Value for number of simultaneous checks must be an unsigned integer: #{n}" unless n =~ /^[[:digit:]]+$/
     n = Integer(n)
     fail "Value for number of simultaneous checks can't be 0." if n.zero?
     @params.port_check_async = n
   end
 
-  parser.on("-t", "--port-check-timeout=SECONDS", "Set timeout when waiting for a port-check reply.  Default is #{@params.port_check_timeout}.") do |secs|
+  parser.on("-t", "--port-check-timeout=SECONDS",
+  "Set timeout when waiting for a port-check reply.  Default is #{@params.port_check_timeout}.") do |secs|
     secs = Float(secs) rescue fail("Value for check timeout must be a number: #{secs}")
     fail "Value for check timeout can't be 0." if secs.zero?
     @params.port_check_timeout = secs
   end
 
-  parser.on("-u", "--user USER", "Tell dnscrypt-proxy to run as USER.  This also affects --change-owner.") do |user|
+  parser.on("-u", "--user=USER", "Tell dnscrypt-proxy to run as USER.  This also affects --change-owner.") do |user|
     fail "User can't be an empty string." if user.empty?
     @params.user = user
   end
@@ -483,11 +552,33 @@ Options:"
     exit 1
   end
 
-  parser.on("-w", "--wait-before-next=SECONDS", "Wait SECONDS before creating the next instance of dnscrypt-proxy.", "Default is #{@params.wait_before_next}.") do |secs|
-    @params.wait_before_next = Float(secs) rescue fail("Invalid value for instance-wait: #{secs}.")
+  parser.on("-w", "--wait-for-connection=HOST[:PORT][,HOST2[:PORT2][,...]]",
+  "Wait until any of the specified hosts acknowledges connection, or responds",
+  "with an ICMP Echo reply if no port is specified.  Checking with ICMP needs",
+  "net-ping gem, and requires root/administrative privileges.") do |pairs|
+    @params.wait_for_connection = pairs.split(',').map do |host_and_port|
+      host, port = host_and_port.split(':')
+      fail "Invalid host: #{host}" unless is_host_valid?(host)
+
+      if port.nil?
+        fail "Root/administrative privileges required for ICMP." unless Process.euid.zero?
+
+        begin
+          require 'net/ping'
+        rescue LoadError
+          fail "Gem net-ping needs to be installed to send ICMP Echo requests."
+        end
+      else
+        port = Integer(port) rescue nil
+        fail "Invalid port: #{port}" unless port and port > 0 and port < 65536
+      end
+
+      [host, port]
+    end
   end
 
-  parser.on("-W", "--write-pids [DIR]", "Enable writing PID's to DIR.", "Default directory is \"#{@params.write_pids_dir}\".") do |dir|
+  parser.on("-W", "--write-pids[=DIR]", "Enable writing PID's to DIR.",
+  "Default directory is \"#{@params.write_pids_dir}\".") do |dir|
     @params.write_pids = true
     @params.write_pids_dir = dir if dir
   end
@@ -564,6 +655,12 @@ Options:"
         entries << Entry.new(resolver_address, provider_name, provider_key)
       end
     end
+
+    #
+    # Wait for connection if wanted.
+    #
+
+    wait_for_connection if @params.wait_for_connection
 
     #
     # Check avaiability of services.
@@ -677,11 +774,11 @@ Options:"
       end
 
       break if entry.nil? or @pids.size == @params.max_instances
-      Kernel.sleep(@params.wait_before_next) if @params.wait_before_next > 0.0
+      Kernel.sleep(@params.instance_delay) if @params.instance_delay > 0.0
     end
 
     #
-    # Wait for all processes to exit and shutdown.
+    # Wait for all processes to exit.
     #
 
     r = Process.waitall
