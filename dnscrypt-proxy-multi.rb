@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-05-06'
+VERSION = '2016-05-14'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -426,12 +426,13 @@ Options:"
     exit 1
   end
 
-  parser.on("-c", "--resolver-check=FQDN[/TIMEOUT[/WAIT]]",
-  "Check instances of dnscrypt-proxy if they can resolve FQDN, and replace them",
-  "with another instance that targets another resolver entry if they don't.",
-  "Default timeout is #{@params.resolver_check_timeout}.  Default amount of wait-time to allow an instance to",
-  "load and initialize before checking it is #{@params.resolver_check_wait}.") do |fqdn_timeout|
-    fqdn, timeout, wait = fqdn_timeout.split('/')
+  parser.on("-c", "--resolver-check=FQDN[,FQDN2][/TIMEOUT[/WAIT]]",
+  "Check instances of dnscrypt-proxy if they can resolve all specified FQDN",
+  "and replace them with another instance that targets another resolver entry",
+  "if they don't.  Default timeout is #{@params.resolver_check_timeout}.  Default amount of wait-time to",
+  "allow an instance to load and initialize before checking it is #{@params.resolver_check_wait}.") do |fqdn_timeout|
+    fqdn_list, timeout, wait = fqdn_timeout.split('/')
+    fqdn_list = fqdn_list.split(',')
 
     if timeout and not timeout.empty?
       timeout = Float(timeout) rescue fail("Invalid timeout value: #{timeout}")
@@ -443,8 +444,11 @@ Options:"
       @params.resolver_check_wait = wait
     end
 
-    fail "Not a valid FQDN: #{fqdn}" unless valid_fqdn?(fqdn)
-    @params.resolver_check = fqdn
+    fqdn_list.each do |e|
+      fail "Not a valid FQDN: #{e}" unless valid_fqdn?(e)
+    end
+
+    @params.resolver_check = fqdn_list
   end
 
   parser.on("-C", "--change-owner", "Change ownership of directories to specified user or the process' UID.") do
@@ -749,23 +753,30 @@ Options:"
         end
 
         if @params.resolver_check
-          log_message "Checking if #{entry.resolver_address} (#{local_ip}:#{local_port}) can resolve #{@params.resolver_check}."
-          log_verbose "Timeout is #{@params.resolver_check_timeout}."
+          failed = false
 
-          sleep @params.resolver_check_wait
+          @params.resolver_check.each do |fqdn|
+            log_message "Checking if #{entry.resolver_address} (#{local_ip}:#{local_port}) can resolve #{fqdn}."
+            log_verbose "Timeout is #{@params.resolver_check_timeout}."
 
-          begin
-            r = Resolv::DNS.new(nameserver_port: [[local_ip, local_port]])
-            r.timeouts = @params.resolver_check_timeout
-            ipv4 = r.getaddress(@params.resolver_check)
-            log_message "Success: #{ipv4.to_name.to_s.gsub(/\.in-addr\.arpa$/, '')}"
-          rescue Resolv::ResolvError => ex
-            log_error "Resolve error: #{ex.message}"
-            log_verbose "Stopping instance."
-            Process.kill('TERM', pid) rescue SystemCallError
-            Process.wait(pid) rescue SystemCallError
-            next
+            sleep @params.resolver_check_wait
+
+            begin
+              r = Resolv::DNS.new(nameserver_port: [[local_ip, local_port]])
+              r.timeouts = @params.resolver_check_timeout
+              ipv4 = r.getaddress(fqdn)
+              log_message "Success: #{ipv4.to_name.to_s.gsub(/\.in-addr\.arpa$/, '')}"
+            rescue Resolv::ResolvError => ex
+              log_error "Resolve error: #{ex.message}"
+              log_verbose "Stopping instance."
+              Process.kill('TERM', pid) rescue SystemCallError
+              Process.wait(pid) rescue SystemCallError
+              failed = true
+              break
+            end
           end
+
+          next if failed
         end
 
         @pids << pid
