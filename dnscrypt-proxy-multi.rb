@@ -40,6 +40,7 @@ VERSION = '2016-05-14'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
+DEFAULT_PORT = 443
 
 @log_buffer = []
 @log_file = nil
@@ -649,13 +650,18 @@ Options:"
     CSV.foreach(@params.resolvers_list, encoding: @params.resolvers_list_encoding) do |row|
       resolver_address, provider_name, provider_key = row.values_at(10, 11, 12)
 
-      if not resolver_address =~ /^([[:alnum:]]{1,3}.){3}[[:alnum:]]{1,3}:[[:digit:]]+$/
+      if not resolver_address =~ /^([[:alnum:]]{1,3}.){3}[[:alnum:]]{1,3}(:[[:digit:]]+)?$/
         log_warning "Ignoring entry with invalid or unsupported resolver address: #{resolver_address}"
       elsif not provider_name =~ /^[[:alnum:]]+[[:alnum:]-.]+[.][[:alpha:]]+$/
         log_warning "Ignoring entry with invalid provider name: #{resolver_address} (#{provider_name})"
       elsif not provider_key =~ /^([[:alnum:]]{4}:){15}[[:alnum:]]{4}$/
         log_warning "Ignoring entry with invalid provider key: #{resolver_address} (#{provider_key})"
       else
+        unless resolver_address =~ /:[[:digit:]]+$/
+          log_warning "Using default port #{DEFAULT_PORT} for #{resolver_address}."
+          resolver_address = "#{resolver_address}:#{DEFAULT_PORT}"
+        end
+
         entries << Entry.new(resolver_address, provider_name, provider_key)
       end
     end
