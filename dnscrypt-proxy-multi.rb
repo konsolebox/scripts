@@ -42,17 +42,19 @@ WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
 DEFAULT_PORT = 443
 
+@exit_status = 1
 @log_buffer = []
 @log_file = nil
 @pids = []
-@exit_status = 1
+@syslog_logger = nil
 
 @params = Struct.new(
-  :change_owner, :debug, :dnscrypt_proxy, :ignore_ip_format, :instance_delay,
-  :local_ip_range, :local_port_range, :log, :log_dir, :log_file, :log_level,
-  :log_overwrite, :max_instances, :port_check_async, :port_check_timeout,
-  :resolvers_list, :resolvers_list_encoding, :resolver_check,
-  :resolver_check_timeout, :resolver_check_wait, :user, :verbose,
+  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_syslog,
+  :ignore_ip_format, :instance_delay, :local_ip_range, :local_port_range, :log,
+  :log_dir, :log_file, :log_level, :log_overwrite, :max_instances,
+  :port_check_async, :port_check_timeout, :resolvers_list,
+  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout,
+  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose,
   :wait_for_connection, :write_pids, :write_pids_dir
 ).new
 
@@ -60,6 +62,7 @@ def initialize_params
   @params.change_owner = false
   @params.debug = false
   @params.dnscrypt_proxy = which('dnscrypt-proxy')
+  @params.dnscrypt_proxy_syslog = false
   @params.ignore_ip_format = false
   @params.instance_delay = 0.0
   @params.local_ip_range = '127.0.100.1-254'
@@ -77,6 +80,8 @@ def initialize_params
   @params.resolver_check = nil
   @params.resolver_check_timeout = 5.0
   @params.resolver_check_wait = 0.1
+  @params.syslog = false
+  @params.syslog_prefix = ''
   @params.user = nil
   @params.verbose = false
   @params.wait_for_connection = nil
@@ -84,7 +89,9 @@ def initialize_params
   @params.write_pids_dir = '/var/run/dnscrypt-proxy-multi'
 end
 
-def log(msg, stderr = false)
+def log(msg, stderr, syslog_method, prefix = '')
+  stderr ? $stderr.puts("#{prefix}#{msg}") : puts("#{prefix}#{msg}")
+
   if @log_buffer
     @log_buffer << "[#{Time.now.strftime('%F %T')}] #{msg}"
   elsif @log_file
@@ -92,31 +99,31 @@ def log(msg, stderr = false)
     @log_file.flush
   end
 
-  stderr ? $stderr.puts(msg) : puts(msg)
+  @syslog_logger.method(syslog_method).call("#{@params.syslog_prefix}#{msg}") if @syslog_logger
 end
 
 def log_message(msg)
-  log msg
+  log(msg, false, :info)
 end
 
 def log_warning(msg)
-  log "[Warning] #{msg}"
+  log('[Warning] ' + msg, false, :warn)
 end
 
 def log_error(msg)
-  log "[Error] #{msg}", true
+  log('[Error] ' + msg, true, :error)
 end
 
 def log_verbose(msg)
-  log msg if @params.verbose
+  log(msg, false, :info) if @params.verbose
 end
 
 def log_debug
-  log "[Debug] #{msg}" if @params.debug
+  log('[Debug] ' + msg, false, :debug) if @params.debug
 end
 
 def fail(msg)
-  log "[Failure] #{msg}", true
+  log('[Failure] ' + msg, true, :fatal)
   exit 1
 end
 
@@ -452,7 +459,7 @@ Options:"
     @params.resolver_check = fqdn_list
   end
 
-  parser.on("-C", "--change-owner", "Change ownership of directories to specified user or the process' UID.") do
+  parser.on("-C", "--change-owner","Change ownership of directories to specified user or the process' UID.") do
     @params.change_owner = true
   end
 
@@ -482,7 +489,7 @@ Options:"
     @params.ignore_ip_format = true
   end
 
-  parser.on("-l", "--log[=LOG_DIR]", "Enable logging files to LOG_DIR.",
+  parser.on("-l", "--log [LOG_DIR]", "Enable logging files to LOG_DIR.",
   "Default directory is \"#{@params.log_dir}\".") do |dir|
     @params.log = true
     @params.log_dir = dir if dir
@@ -536,6 +543,13 @@ Options:"
     @params.port_check_async = n
   end
 
+  parser.on("-S", "--syslog [PREFIX]",
+  "Log messages to system log.  PREFIX gets inserted at the beginning of every",
+  "message sent to syslog if it's specified.  See also -Z.") do |prefix|
+    @params.syslog = true
+    @params.syslog_prefix = prefix || ''
+  end
+
   parser.on("-t", "--port-check-timeout=SECONDS",
   "Set timeout when waiting for a port-check reply.  Default is #{@params.port_check_timeout}.") do |secs|
     secs = Float(secs) rescue fail("Value for check timeout must be a number: #{secs}")
@@ -582,15 +596,33 @@ Options:"
     end
   end
 
-  parser.on("-W", "--write-pids[=DIR]", "Enable writing PID's to DIR.",
+  parser.on("-W", "--write-pids [DIR]", "Enable writing PID's to DIR.",
   "Default directory is \"#{@params.write_pids_dir}\".") do |dir|
     @params.write_pids = true
     @params.write_pids_dir = dir if dir
   end
 
+  parser.on("-Z", "--syslog-dnscrypt-proxy", "Tell dnscrypt-proxy to log messages to system log.") do
+    @params.dnscrypt_proxy_syslog = true
+  end
+
   parser.parse!
 
   begin
+    #
+    # Enable logging to system log if wanted.
+    #
+
+    if @params.syslog
+      require 'syslog/logger'
+
+      begin
+        @syslog_logger = Syslog::Logger.new('dnscrypt-proxy-multi')
+      rescue SystemCallError => ex
+        fail "Failed to open syslog: #{ex.message}"
+      end
+    end
+
     #
     # Show startup message.
     #
@@ -720,6 +752,7 @@ Options:"
         cmd += ["--logfile=#{logfile_prefix}.log",
             "--loglevel=#{@params.log_level}"] if @params.log
         cmd << "--user=#{@params.user}" if @params.user
+        cmd << "--syslog" if @params.dnscrypt_proxy_syslog
 
         if @params.write_pids
           file = File.join(@params.write_pids_dir, "dnscrypt-proxy.#{local_ip}.#{local_port}.pid")
