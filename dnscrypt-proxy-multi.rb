@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-05-14'
+VERSION = '2016-05-18'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -468,7 +468,7 @@ Options:"
     @params.instance_delay = Float(secs) rescue fail("Invalid value for instance-wait: #{secs}.")
   end
 
-  parser.on("-g", "--debug", "Show debug messages.") do
+  parser.on("-G", "--debug", "Show debug messages.") do
     @params.debug = true
   end
 
