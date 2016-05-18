@@ -602,7 +602,9 @@ Options:"
     @params.write_pids_dir = dir if dir
   end
 
-  parser.on("-Z", "--syslog-dnscrypt-proxy", "Tell dnscrypt-proxy to log messages to system log.") do
+  parser.on("-Z", "--syslog-dnscrypt-proxy",
+  "Tell dnscrypt-proxy to log messages to system log.  Note that this disables",
+  "file-logging in it.") do
     @params.dnscrypt_proxy_syslog = true
   end
 
@@ -749,10 +751,14 @@ Options:"
             "--resolver-address=#{entry.resolver_address}",
             "--provider-key=#{entry.provider_key}",
             "--provider-name=#{entry.provider_name}"]
-        cmd += ["--logfile=#{logfile_prefix}.log",
-            "--loglevel=#{@params.log_level}"] if @params.log
+
+        if @params.dnscrypt_proxy_syslog
+          cmd << "--syslog"
+        elsif @params.log
+          cmd += ["--logfile=#{logfile_prefix}.log", "--loglevel=#{@params.log_level}"]
+        end
+
         cmd << "--user=#{@params.user}" if @params.user
-        cmd << "--syslog" if @params.dnscrypt_proxy_syslog
 
         if @params.write_pids
           file = File.join(@params.write_pids_dir, "dnscrypt-proxy.#{local_ip}.#{local_port}.pid")
