@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-05-18'
+VERSION = '2016-05-31'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -50,6 +50,7 @@ DEFAULT_PORT = 443
 
 @params = Struct.new(
   :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_syslog,
+  :dnscrypt_proxy_syslog_prefix, :dnscrypt_proxy_user, :group,
   :ignore_ip_format, :instance_delay, :local_ip_range, :local_port_range, :log,
   :log_dir, :log_file, :log_level, :log_overwrite, :max_instances,
   :port_check_async, :port_check_timeout, :resolvers_list,
@@ -59,10 +60,12 @@ DEFAULT_PORT = 443
 ).new
 
 def initialize_params
-  @params.change_owner = false
+  @params.change_owner = nil
   @params.debug = false
   @params.dnscrypt_proxy = which('dnscrypt-proxy')
   @params.dnscrypt_proxy_syslog = false
+  @params.dnscrypt_proxy_user = nil
+  @params.group = nil
   @params.ignore_ip_format = false
   @params.instance_delay = 0.0
   @params.local_ip_range = '127.0.100.1-254'
@@ -384,11 +387,12 @@ def prepare_dir(dir)
   end
 
   if @params.change_owner
-    owner = @params.user || Process.uid
+    owner = @params.change_owner
+    user, group = owner.split(':')
     log_message "Changing owner of #{dir} to #{owner}."
 
     begin
-      FileUtils.chown(owner, nil, [dir])
+      FileUtils.chown(user, group, [dir])
     rescue SystemCallError, ArgumentError => ex
       fail "Failed to change ownership of directory #{dir} to #{owner}: #{ex.message}"
     end
@@ -459,8 +463,12 @@ Options:"
     @params.resolver_check = fqdn_list
   end
 
-  parser.on("-C", "--change-owner","Change ownership of directories to specified user or the process' UID.") do
-    @params.change_owner = true
+  parser.on("-C", "--change-owner=USER[:GROUP]",
+  "Change ownership of directories to specified user-group before opening files",
+  "instantiating dnscrypt-proxy's, and dropping privilege to a user if",
+  "configured.") do |user_group|
+    fail "User can't be an empty string." if user_group.empty?
+    @params.change_owner = user_group
   end
 
   parser.on("-d", "--dnscrypt-proxy=PATH", "Set path to dnscrypt-proxy executable.",
@@ -473,6 +481,12 @@ Options:"
   "Wait SECONDS seconds before creating the next instance of dnscrypt-proxy.",
   "Default is #{@params.instance_delay}.") do |secs|
     @params.instance_delay = Float(secs) rescue fail("Invalid value for instance-wait: #{secs}.")
+  end
+
+  parser.on("-g", "--group=GROUP",
+  "Drop priviliges to GROUP before creating instances of dnscrypt-proxy.") do |group|
+    fail "User can't be an empty string." if group.empty?
+    @params.group = group
   end
 
   parser.on("-G", "--debug", "Show debug messages.") do
@@ -557,9 +571,19 @@ Options:"
     @params.port_check_timeout = secs
   end
 
-  parser.on("-u", "--user=USER", "Tell dnscrypt-proxy to run as USER.  This also affects --change-owner.") do |user|
+  parser.on("-u", "--user=USER",
+  "Drop priviliges to USER before creating instances of dnscrypt-proxy.",
+  "Note that this might prevent dnscrypt-proxy from being able to listen to",
+  "ports lower than 1024.") do |user|
     fail "User can't be an empty string." if user.empty?
     @params.user = user
+  end
+
+  parser.on("-U", "--dnscrypt-proxy-user=USER",
+  "Tell dnscrypt-proxy to drop privileges as USER.",
+  "Please consider that this may or may not work with --user.") do |user|
+    fail "User can't be an empty string." if user.empty?
+    @params.dnscrypt_proxy_user = user
   end
 
   parser.on("-v", "--verbose", "Show verbose messages.") do
@@ -602,10 +626,13 @@ Options:"
     @params.write_pids_dir = dir if dir
   end
 
-  parser.on("-Z", "--syslog-dnscrypt-proxy",
-  "Tell dnscrypt-proxy to log messages to system log.  Note that this disables",
-  "file-logging in it.") do
+  parser.on("-Z", "--dnscrypt-proxy-syslog [PREFIX]",
+  "Tell dnscrypt-proxy to log messages to system log.  It is automatically",
+  "configured to have a prefix of '[REMOTE_IP:PORT]'. If PREFIX is specified,",
+  "it is added to it with a space as a separator.",
+  "Note that this disables file-logging in dnscrypt-proxy.") do |prefix|
     @params.dnscrypt_proxy_syslog = true
+    @params.dnscrypt_proxy_syslog_prefix = prefix if prefix
   end
 
   parser.parse!
@@ -701,6 +728,28 @@ Options:"
     end
 
     #
+    # Drop privilege if wanted.
+    #
+
+    if @params.user
+      begin
+        user = Integer(@params.user) rescue @params.user
+        Process::Sys.setuid(user)
+      rescue SystemCallError, ArgumentError => e
+        fail "Failed to change user or UID to #{@params.user}: #{e.message}"
+      end
+    end
+
+    if @params.group
+      begin
+        group = Integer(@params.group) rescue @params.group
+        Process::Sys.setgid(group)
+      rescue SystemCallError, ArgumentError => e
+        fail "Failed to change group or GID to #{@params.group}: #{e.message}"
+      end
+    end
+
+    #
     # Wait for connection if wanted.
     #
 
@@ -754,11 +803,14 @@ Options:"
 
         if @params.dnscrypt_proxy_syslog
           cmd << "--syslog"
+          prefix = "[#{entry.resolver_ip}:#{entry.resolver_port}]"
+          prefix << " #{@params.dnscrypt_proxy_syslog_prefix}" if @params.dnscrypt_proxy_syslog_prefix
+          cmd << "--syslog-prefix=#{prefix}"
         elsif @params.log
           cmd += ["--logfile=#{logfile_prefix}.log", "--loglevel=#{@params.log_level}"]
         end
 
-        cmd << "--user=#{@params.user}" if @params.user
+        cmd << "--user=#{@params.dnscrypt_proxy_user}" if @params.dnscrypt_proxy_user
 
         if @params.write_pids
           file = File.join(@params.write_pids_dir, "dnscrypt-proxy.#{local_ip}.#{local_port}.pid")
