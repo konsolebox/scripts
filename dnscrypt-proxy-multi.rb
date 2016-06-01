@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-05-31'
+VERSION = '2016-06-01'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -731,21 +731,21 @@ Options:"
     # Drop privilege if wanted.
     #
 
-    if @params.user
-      begin
-        user = Integer(@params.user) rescue @params.user
-        Process::Sys.setuid(user)
-      rescue SystemCallError, ArgumentError => e
-        fail "Failed to change user or UID to #{@params.user}: #{e.message}"
-      end
-    end
-
     if @params.group
       begin
         group = Integer(@params.group) rescue @params.group
         Process::Sys.setgid(group)
       rescue SystemCallError, ArgumentError => e
         fail "Failed to change group or GID to #{@params.group}: #{e.message}"
+      end
+    end
+
+    if @params.user
+      begin
+        user = Integer(@params.user) rescue @params.user
+        Process::Sys.setuid(user)
+      rescue SystemCallError, ArgumentError => e
+        fail "Failed to change user or UID to #{@params.user}: #{e.message}"
       end
     end
 
