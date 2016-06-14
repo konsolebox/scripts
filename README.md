@@ -6,6 +6,21 @@ Repository for various scripts I make.
 
 Searches for binary files based on the value of `$PATH`.
 
+#### dnscrypt-proxy-multi
+
+A Ruby script that runs multiple instances of dnscrypt-proxy.
+
+It parses a CSV file and makes use of the entries found in
+it as target remote services when creating instances of
+dnscrypt-proxy.  Remote services are checked for
+availability before an instance of dnscrypt-proxy is used
+to connect to them.  An FQDN can also be used to check if
+a remote service can resolve names.
+
+The script waits for all instances to exit before it
+exits.  It also automaticaly stops them when it receives
+SIGTERM or SIGINT.
+
 #### getabspath/*
 
 Scripts that implement getabspath() for various shells.  getabspath() is
