@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-06-01'
+VERSION = '2016-06-20'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -49,21 +49,21 @@ DEFAULT_PORT = 443
 @syslog_logger = nil
 
 @params = Struct.new(
-  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args, 
-  :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix, 
-  :dnscrypt_proxy_user, :ephemeral_keys, :group, :ignore_ip_format, 
-  :instance_delay, :local_ip_range, :local_port_range, :log, :log_dir, 
-  :log_file, :log_level, :log_overwrite, :max_instances, 
-  :port_check_async, :port_check_timeout, :resolvers_list, 
-  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout, 
-  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose, 
+  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args,
+  :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix,
+  :dnscrypt_proxy_user, :ephemeral_keys, :group, :ignore_ip_format,
+  :instance_delay, :local_ip_range, :local_port_range, :log, :log_dir,
+  :log_file, :log_level, :log_overwrite, :max_instances,
+  :port_check_async, :port_check_timeout, :resolvers_list,
+  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout,
+  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose,
   :wait_for_connection, :write_pids, :write_pids_dir
 ).new
 
 def initialize_params
   @params.change_owner = nil
   @params.debug = false
-  @params.dnscrypt_proxy = which('dnscrypt-proxy')
+  @params.dnscrypt_proxy = nil
   @params.dnscrypt_proxy_extra_args = nil
   @params.dnscrypt_proxy_syslog = false
   @params.dnscrypt_proxy_user = nil
@@ -476,7 +476,7 @@ Options:"
 
   parser.on("-d", "--dnscrypt-proxy=PATH", "Set path to dnscrypt-proxy executable.",
   "Default is \"#{@params.dnscrypt_proxy}\".") do |path|
-    fail "Not executable or does not exist: #{path}" unless executable_file?(path)
+    fail "Not executable or file does not exist: #{path}" unless executable_file?(path)
     @params.dnscrypt_proxy = path
   end
 
@@ -683,6 +683,15 @@ Options:"
       log_message "SIGTERM caught."
       stop_instances
       exit 1
+    end
+
+    #
+    # Locate dnscrypt-proxy if it wasn't specified.
+    #
+
+    unless @params.dnscrypt_proxy
+      @params.dnscrypt_proxy = which('dnscrypt-proxy')
+      fail "Unable to find dnscrypt-proxy.  Please specify its location manually." unless @params.dnscrypt_proxy
     end
 
     #
