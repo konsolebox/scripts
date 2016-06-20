@@ -17,7 +17,7 @@
 # exits.  It also automaticaly stops them when it receives
 # SIGTERM or SIGINT.
 #
-# Usage: dnscrypt-proxy-multi[.rb] [options]
+# Usage: dnscrypt-proxy-multi[.rb] [options] [-- [extra_dnscrypt_proxy_opts]]
 #
 # Run with --help to see readable info about the options.
 #
@@ -49,13 +49,14 @@ DEFAULT_PORT = 443
 @syslog_logger = nil
 
 @params = Struct.new(
-  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_syslog,
-  :dnscrypt_proxy_syslog_prefix, :dnscrypt_proxy_user, :group,
-  :ignore_ip_format, :instance_delay, :local_ip_range, :local_port_range, :log,
-  :log_dir, :log_file, :log_level, :log_overwrite, :max_instances,
-  :port_check_async, :port_check_timeout, :resolvers_list,
-  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout,
-  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose,
+  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args, 
+  :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix, 
+  :dnscrypt_proxy_user, :ephemeral_keys, :group, :ignore_ip_format, 
+  :instance_delay, :local_ip_range, :local_port_range, :log, :log_dir, 
+  :log_file, :log_level, :log_overwrite, :max_instances, 
+  :port_check_async, :port_check_timeout, :resolvers_list, 
+  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout, 
+  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose, 
   :wait_for_connection, :write_pids, :write_pids_dir
 ).new
 
@@ -63,8 +64,10 @@ def initialize_params
   @params.change_owner = nil
   @params.debug = false
   @params.dnscrypt_proxy = which('dnscrypt-proxy')
+  @params.dnscrypt_proxy_extra_args = nil
   @params.dnscrypt_proxy_syslog = false
   @params.dnscrypt_proxy_user = nil
+  @params.ephemeral_keys = false
   @params.group = nil
   @params.ignore_ip_format = false
   @params.instance_delay = 0.0
@@ -420,7 +423,7 @@ def main
     $stderr.puts "dnscrypt-proxy-multi #{VERSION}
 Runs multiple instances of dnscrypt-proxy.
 
-Usage: #{$0} [options]
+Usage: #{$0} [options] [-- [extra_dnscrypt_proxy_opts]]
 
 Options:"
     $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }
@@ -481,6 +484,12 @@ Options:"
   "Wait SECONDS seconds before creating the next instance of dnscrypt-proxy.",
   "Default is #{@params.instance_delay}.") do |secs|
     @params.instance_delay = Float(secs) rescue fail("Invalid value for instance-wait: #{secs}.")
+  end
+
+  parser.on("-E", "--ephemeral-keys",
+  "Pass --ephemeral-keys option to every instance of dnscrypt-proxy.",
+  "See dnscrypt-proxy(8) for more info.") do
+    @params.ephemeral_keys = true
   end
 
   parser.on("-g", "--group=GROUP",
@@ -633,6 +642,13 @@ Options:"
   "Note that this disables file-logging in dnscrypt-proxy.") do |prefix|
     @params.dnscrypt_proxy_syslog = true
     @params.dnscrypt_proxy_syslog_prefix = prefix if prefix
+  end
+
+  parser.on("--", "All arguments after this are passed to dnscrypt-proxy.",
+  "Please use this feature only if an option of dnscrypt-proxy is not yet",
+  "supported by dnscrypt-proxy-multi.") do
+    @params.dnscrypt_proxy_extra_args = ARGV
+    parser.terminate
   end
 
   parser.parse!
@@ -816,6 +832,9 @@ Options:"
           file = File.join(@params.write_pids_dir, "dnscrypt-proxy.#{local_ip}.#{local_port}.pid")
           cmd << "--pidfile=#{file}"
         end
+
+        cmd << "--ephemeral-keys" if @params.ephemeral_keys
+        cmd += @params.dnscrypt_proxy_extra_args if @params.dnscrypt_proxy_extra_args
 
         log_message "Starting dnscrypt-proxy instance for #{entry.resolver_address} (#{local_ip}:#{local_port})."
 
