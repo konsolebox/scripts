@@ -4,17 +4,17 @@ function getcleanpath {
 
 	case $1 in
 	/*)
-		set -- ${=1}
+		set -- ${=1#/}
 		;;
 	*)
-		set -- ${=PWD} ${=1}
+		set -- ${=PWD#/} ${=1}
 		;;
 	esac
 
 	for __; do
 		case $__ in
 		..)
-			[[ I -ne 0 ]] && T[I--]=()
+			[[ I -gt 0 ]] && T[I--]=()
 			continue
 			;;
 		.|'')

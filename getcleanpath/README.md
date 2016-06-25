@@ -10,11 +10,11 @@ that works for a specific shell like Bash, Ksh and Zsh.
 
 | Script                  | Target Shell |
 |-------------------------|--------------|
-| getcleanpath.bash       | All versions of Bash starting 3.0. |
+| getcleanpath.bash       | All versions of Bash starting 3.0 |
 | getcleanpath.bash-2.05b | Bash 2.05b or newer |
 | getcleanpath.bash-2.04  | Bash 2.04 or newer  |
-| getcleanpath.ksh        | Original Ksh |
+| getcleanpath.ksh        | Ksh93 and MirBSD Ksh |
 | getcleanpath.pdksh      | Public Domain Ksh |
-| getcleanpath.sh         | Generic implementation for all Bourne shell based shells that relies on pwd and a subshell |
-| getcleanpath.sh+awk     | Generic implementation that relies on pwd and awk |
+| getcleanpath.sh+pwd     | Generic implementation that relies on pwd and a subshell function |
+| getcleanpath.sh+pwd+awk | Generic implementation that relies on pwd and awk |
 | getcleanpath.zsh        | Zsh |

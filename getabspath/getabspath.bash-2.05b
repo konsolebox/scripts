@@ -3,17 +3,17 @@ function getabspath {
 
 	case $1 in
 	/*)
-		__=$1
+		__=${1#/}
 		;;
 	*)
-		__=${PWD}/$1
+		__=${PWD#/}/$1
 		;;
 	esac
 
 	while read -r -d / __; do
 		case $__ in
 		..)
-			[[ I -ne 0 ]] && unset 'T[--I]'
+			[[ I -gt 0 ]] && unset 'T[--I]'
 			continue
 			;;
 		.|'')
@@ -26,10 +26,10 @@ function getabspath {
 
 	case $1 in
 	*/)
-		[[ I -ne 0 ]] && __="/${T[*]}/" || __=/
+		[[ I -gt 0 ]] && __="/${T[*]}/" || __=/
 		;;
 	*)
-		[[ I -ne 0 ]] && __="/${T[*]}" || __=/.
+		[[ I -gt 0 ]] && __="/${T[*]}" || __=/.
 		;;
 	esac
 }

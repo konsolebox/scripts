@@ -12,11 +12,11 @@ that works for a specific shell like Bash, Ksh and Zsh.
 
 | Script                | Target Shell |
 |-----------------------|--------------|
-| getabspath.bash       | All versions of Bash starting 3.0. |
+| getabspath.bash       | All versions of Bash starting 3.0 |
 | getabspath.bash-2.05b | Bash 2.05b or newer |
 | getabspath.bash-2.04  | Bash 2.04 or newer  |
-| getabspath.ksh        | Original Ksh |
+| getabspath.ksh        | Ksh93 and MirBSD Ksh |
 | getabspath.pdksh      | Public Domain Ksh |
-| getabspath.sh         | Generic implementation for all Bourne shell based shells that relies on pwd and a subshell |
-| getabspath.sh+awk     | Generic implementation that relies on pwd and awk |
+| getabspath.sh+pwd     | Generic implementation that relies on pwd and a subshell function |
+| getabspath.sh+pwd+awk | Generic implementation that relies on pwd and awk |
 | getabspath.zsh        | Zsh |

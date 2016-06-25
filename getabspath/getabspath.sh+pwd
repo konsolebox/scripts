@@ -1,0 +1,49 @@
+getabspath() {
+	case $1 in
+	/*)
+		__=$1
+		;;
+	*)
+		__=`exec pwd`/$1
+		;;
+	esac
+
+	__=`get_abs_path_ "$__"`
+
+	case $1 in
+	*/)
+		[ "$__" = / ] || __=$__/
+		;;
+	*)
+		[ "$__" = / ] && __=/.
+		;;
+	esac
+}
+
+get_abs_path_() {
+	set -f
+	IFS=/ __= L=
+	set -- $1
+
+	while [ "$#" -gt 0 ]; do
+		case $1 in
+		..)
+			shift
+			[ -z "$L" ] && continue
+			set -- $__ "$@"
+			__= L=
+			continue
+			;;
+		.|'')
+			shift
+			continue
+			;;
+		esac
+
+		[ -n "$L" ] && __=$__/$L
+		L=$1
+		shift
+	done
+
+	echo "$__/$L"
+}

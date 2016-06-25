@@ -4,17 +4,17 @@ function getabspath {
 
 	case $1 in
 	/*)
-		set -- ${=1}
+		set -- ${=1#/}
 		;;
 	*)
-		set -- ${=PWD} ${=1}
+		set -- ${=PWD#/} ${=1}
 		;;
 	esac
 
 	for __; do
 		case $__ in
 		..)
-			[[ I -ne 0 ]] && T[I--]=()
+			[[ I -gt 0 ]] && T[I--]=()
 			continue
 			;;
 		.|'')
@@ -27,10 +27,10 @@ function getabspath {
 
 	case $__ in
 	*/)
-		[[ I -ne 0 ]] && __="/${T[*]}/" || __=/
+		[[ I -gt 0 ]] && __="/${T[*]}/" || __=/
 		;;
 	*)
-		[[ I -ne 0 ]] && __="/${T[*]}" || __=/.
+		[[ I -gt 0 ]] && __="/${T[*]}" || __=/.
 		;;
 	esac
 }
