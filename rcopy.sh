@@ -27,17 +27,18 @@
 	exit 1
 }
 
-CP_OPTS=()
-HARD_LINK_MODE=false
-TARGET_ROOT=
-VERBOSE=false
-QUIET=false
-VERSION=2017-05-24
+CONFIG_CP_OPTS=()
+CONFIG_HARD_LINK_MODE=false
+CONFIG_TARGET_ROOT=
+CONFIG_VERBOSE=false
+CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
+VERSION=2017-05-24
+
 function log_message {
-	[[ ${QUIET} == false ]] && echo "rcopy: $1"
+	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
 }
 
 function log_warning {
@@ -45,7 +46,7 @@ function log_warning {
 }
 
 function log_verbose {
-	[[ ${VERBOSE} == true ]] && echo "rcopy: $1"
+	[[ ${CONFIG_VERBOSE} == true ]] && echo "rcopy: $1"
 }
 
 function log_error {
@@ -74,19 +75,19 @@ Disclaimer: This tool comes with no warranty."
 }
 
 function get_clean_path {
-	local T1 T2=() I=0 IFS=/
+	local t1 t2=() i=0 IFS=/
 
 	if [[ $1 == /* ]]; then
-		read -ra T1 <<< "$1"
+		read -ra t1 <<< "$1"
 	else
-		read -ra T1 <<< "${PWD}/$1"
+		read -ra t1 <<< "${PWD}/$1"
 	fi
 
-	for __ in "${T1[@]}"; do
+	for __ in "${t1[@]}"; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] || fail "Path tries to get the parent directory of '/': $1"
-			unset 'T2[--I]'
+			[[ i -gt 0 ]] || fail "Path tries to get the parent directory of '/': $1"
+			unset 't2[--i]'
 			continue
 			;;
 		.|'')
@@ -94,95 +95,95 @@ function get_clean_path {
 			;;
 		esac
 
-		T2[I++]=$__
+		t2[i++]=$__
 	done
 
-	__="/${T2[*]}"
+	__="/${t2[*]}"
 }
 
 function cp {
-	local MESSAGES R
-	MESSAGES=$(command cp "${CP_OPTS[@]}" "$@" 2>&1)
-	R=$?
+	local messages r
+	messages=$(command cp "${CONFIG_CP_OPTS[@]}" "$@" 2>&1)
+	r=$?
 
-	if [[ -n ${MESSAGES} ]]; then
-		local LINES=()
-		readarray -t LINES <<< "${MESSAGES}"
-		printf 'rcopy: cp: %s\n' "${LINES[@]}"
+	if [[ -n ${messages} ]]; then
+		local lines=()
+		readarray -t lines <<< "${messages}"
+		printf 'rcopy: cp: %s\n' "${lines[@]}"
 	fi
 
-	return "$R"
+	return "$r"
 }
 
 function copy_dir_structure {
-	local SOURCE_TREE=() DEST_DIR=$2 CURRENT_SOURCE= LINK_TARGET __
-	IFS=/ read -ra SOURCE_TREE <<< "$1"
+	local source_tree=() dest_dir=$2 current_source= link_target __
+	IFS=/ read -ra source_tree <<< "$1"
 
-	for __ in "${SOURCE_TREE[@]}"; do
+	for __ in "${source_tree[@]}"; do
 		[[ -z $__ ]] && continue
-		CURRENT_SOURCE+=/$__
+		current_source+=/$__
 
-		if [[ -L ${CURRENT_SOURCE} ]]; then
-			[[ ! -d ${CURRENT_SOURCE} ]] && fail "Parent path node of a source tree is expected to be a directory but isn't: ${CURRENT_SOURCE}"
+		if [[ -L ${current_source} ]]; then
+			[[ ! -d ${current_source} ]] && fail "Parent path node of a source tree is expected to be a directory but isn't: ${current_source}"
 
-			LINK_TARGET=$(readlink "${CURRENT_SOURCE}") && [[ -n ${LINK_TARGET} ]] || fail "Unable to get link's target: ${CURRENT_SOURCE}"
-			[[ ${LINK_TARGET} == /* ]] && fail "Symbolic-link path nodes that resolve to absolute paths are not yet supported: \"${CURRENT_SOURCE}\" -> \"${LINK_TARGET}\""
+			link_target=$(readlink "${current_source}") && [[ -n ${link_target} ]] || fail "Unable to get link's target: ${current_source}"
+			[[ ${link_target} == /* ]] && fail "Symbolic-link path nodes that resolve to absolute paths are not yet supported: \"${current_source}\" -> \"${link_target}\""
 
-			if [[ -e ${DEST_DIR}${CURRENT_SOURCE} ]]; then
-				if [[ -L ${DEST_DIR}${CURRENT_SOURCE} ]]; then
-					log_warning "Overwriting existing link \"${DEST_DIR}${CURRENT_SOURCE}\" with \"${CURRENT_SOURCE}\"."
+			if [[ -e ${dest_dir}${current_source} ]]; then
+				if [[ -L ${dest_dir}${current_source} ]]; then
+					log_warning "Overwriting existing link \"${dest_dir}${current_source}\" with \"${current_source}\"."
 				else
-					fail "Unable to copy symbolic link from \"${CURRENT_SOURCE}\" to \"${DEST_DIR}${CURRENT_SOURCE}\" since a file or directory already exists."
+					fail "Unable to copy symbolic link from \"${current_source}\" to \"${dest_dir}${current_source}\" since a file or directory already exists."
 				fi
 			fi
 
-			log_message "Copying symbolic link \"${CURRENT_SOURCE}\" (-> \"${LINK_TARGET}\") to \"${DEST_DIR}${CURRENT_SOURCE}\""
-			log_verbose "Command: cp ${CP_OPTS[*]} -d -- \"${CURRENT_SOURCE}\" \"${DEST_DIR}${CURRENT_SOURCE}\""
-			cp "${CP_OPTS[@]}" -d -- "${CURRENT_SOURCE}" "${DEST_DIR}${CURRENT_SOURCE}" || fail "Copy failed."
+			log_message "Copying symbolic link \"${current_source}\" (-> \"${link_target}\") to \"${dest_dir}${current_source}\""
+			log_verbose "Command: cp ${CONFIG_CP_OPTS[*]} -d -- \"${current_source}\" \"${dest_dir}${current_source}\""
+			cp "${CONFIG_CP_OPTS[@]}" -d -- "${current_source}" "${dest_dir}${current_source}" || fail "Copy failed."
 
-			get_clean_path "${CURRENT_SOURCE}/../${LINK_TARGET}"
-			copy_dir_structure "$__" "${DEST_DIR}"
-		elif [[ -d ${CURRENT_SOURCE} ]]; then
-			if [[ ! -e ${DEST_DIR}${CURRENT_SOURCE} ]]; then
-				log_message "Creating directory \"${DEST_DIR}${CURRENT_SOURCE}\"."
-				mkdir -- "${DEST_DIR}${CURRENT_SOURCE}" || fail "Unable to create directory \"${DEST_DIR}${CURRENT_SOURCE}\"."
-			elif [[ ! -d ${DEST_DIR}${CURRENT_SOURCE} ]]; then
-				fail "\"${DEST_DIR}${CURRENT_SOURCE}\" already exists but is not a directory."
+			get_clean_path "${current_source}/../${link_target}"
+			copy_dir_structure "$__" "${dest_dir}"
+		elif [[ -d ${current_source} ]]; then
+			if [[ ! -e ${dest_dir}${current_source} ]]; then
+				log_message "Creating directory \"${dest_dir}${current_source}\"."
+				mkdir -- "${dest_dir}${current_source}" || fail "Unable to create directory \"${dest_dir}${current_source}\"."
+			elif [[ ! -d ${dest_dir}${current_source} ]]; then
+				fail "\"${dest_dir}${current_source}\" already exists but is not a directory."
 			fi
 		else
-			fail "Parent path node of a source tree is neither a directory nor a symbolic link: ${CURRENT_SOURCE}"
+			fail "Parent path node of a source tree is neither a directory nor a symbolic link: ${current_source}"
 		fi
 	done
 }
 
 function process {
-	local DEPS DEST DEST_DIR __
+	local deps dest dest_dir __
 
 	for __; do
 		if [[ -L $__ ]]; then
 			process "$(readlink -m -- "$__")"
 		elif [[ -f $__ && -x $__ ]]; then
-			DEPS=()
-			readarray -t DEPS < <(exec ldd "$__" | grep -Po '/\S+')
-			process "${DEPS[@]}"
+			deps=()
+			readarray -t deps < <(exec ldd "$__" | grep -Po '/\S+')
+			process "${deps[@]}"
 		fi
 
-		DEST=${TARGET_ROOT}$__
-		DEST_DIR=${DEST%/*}
+		dest=${CONFIG_TARGET_ROOT}$__
+		dest_dir=${dest%/*}
 
-		if [[ ! -e ${DEST_DIR} ]]; then
-			copy_dir_structure "${__%/*}" "${TARGET_ROOT}"
-		elif [[ ! -d ${DEST_DIR} ]]; then
-			fail "Destination directory \"${DEST_DIR}\" already exists but is not a directory."
+		if [[ ! -e ${dest_dir} ]]; then
+			copy_dir_structure "${__%/*}" "${CONFIG_TARGET_ROOT}"
+		elif [[ ! -d ${dest_dir} ]]; then
+			fail "Destination directory \"${dest_dir}\" already exists but is not a directory."
 		fi
 
 		if [[ -z ${PROCESSED[$__]} ]]; then
-			if [[ ${HARD_LINK_MODE} == true ]]; then
-				log_message "Hard-linking \"$__\" to \"${DEST_DIR}/\"."
-				cp -a -H -- "$__" "${DEST_DIR}/"
+			if [[ ${CONFIG_HARD_LINK_MODE} == true ]]; then
+				log_message "Hard-linking \"$__\" to \"${dest_dir}/\"."
+				cp -a -H -- "$__" "${dest_dir}/"
 			else
-				log_message "Copying \"$__\" to \"${DEST_DIR}/\"."
-				cp -a -- "$__" "${DEST_DIR}/"
+				log_message "Copying \"$__\" to \"${dest_dir}/\"."
+				cp -a -- "$__" "${dest_dir}/"
 			fi
 
 			[[ $? -eq 0 ]] || fail "Copy failed."
@@ -192,7 +193,7 @@ function process {
 }
 
 function main {
-	local FILE_ARGS=()
+	local file_args=()
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
@@ -201,20 +202,20 @@ function main {
 			exit 1
 			;;
 		-H|--hard-link)
-			HARD_LINK_MODE=true
+			CONFIG_HARD_LINK_MODE=true
 			;;
 		-q|--quiet)
-			QUIET=true
-			VERBOSE=false
+			CONFIG_QUIET=true
+			CONFIG_VERBOSE=false
 			;;
 		-t|--target-root)
-			TARGET_ROOT=$2
+			CONFIG_TARGET_ROOT=$2
 			shift
 			;;
 		-v|--verbose)
-			QUIET=false
-			VERBOSE=true
-			CP_OPTS=("-v")
+			CONFIG_QUIET=false
+			CONFIG_VERBOSE=true
+			CONFIG_CP_OPTS=("-v")
 			;;
 		-V|--version)
 			echo "${VERSION}"
@@ -226,7 +227,7 @@ function main {
 			for __; do
 				[[ ! -e $__ ]] && fail "File or directory does not exist: $__"
 				get_clean_path "$__"
-				FILE_ARGS+=("$__")
+				file_args+=("$__")
 			done
 
 			break
@@ -237,24 +238,24 @@ function main {
 		*)
 			[[ ! -e $1 ]] && fail "File or directory does not exist: $1"
 			get_clean_path "$1"
-			FILE_ARGS+=("$__")
+			file_args+=("$__")
 			;;
 		esac
 
 		shift
 	done
 
-	[[ ${#FILE_ARGS[@]} -eq 0 ]] && fail "No source file specified."
+	[[ ${#file_args[@]} -eq 0 ]] && fail "No source file specified."
 
-	if [[ -z ${TARGET_ROOT} ]]; then
-		[[ ${#FILE_ARGS[@]} -lt 2 ]] && fail "No target directory specified."
-		TARGET_ROOT=${FILE_ARGS[@]:(-1)}
-		unset "FILE_ARGS[${#FILE_ARGS[@]} - 1]"
+	if [[ -z ${CONFIG_TARGET_ROOT} ]]; then
+		[[ ${#file_args[@]} -lt 2 ]] && fail "No target directory specified."
+		CONFIG_TARGET_ROOT=${file_args[@]:(-1)}
+		unset "file_args[${#file_args[@]} - 1]"
 	fi
 
-	[[ ${TARGET_ROOT} == / ]] && fail "Target root directory can't be '/'."
+	[[ ${CONFIG_TARGET_ROOT} == / ]] && fail "Target root directory can't be '/'."
 
-	process "${FILE_ARGS[@]}"
+	process "${file_args[@]}"
 }
 
 main "$@"
