@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Oct. 14, 2016
+# May 24, 2017
 
 # ----------------------------------------------------------
 
@@ -32,7 +32,7 @@ HARD_LINK_MODE=false
 TARGET_ROOT=
 VERBOSE=false
 QUIET=false
-VERSION=2016-10-14
+VERSION=2017-05-24
 
 declare -A PROCESSED=()
 
@@ -125,7 +125,7 @@ function copy_dir_structure {
 		if [[ -L ${CURRENT_SOURCE} ]]; then
 			[[ ! -d ${CURRENT_SOURCE} ]] && fail "Parent path node of a source tree is expected to be a directory but isn't: ${CURRENT_SOURCE}"
 
-			LINK_TARGET=$(readlink "${CURRENT_SOURCE}") && [[ -n ${LINK_TARGET} ]] || fail "Unable to get link's target: ${CURENT_SOURCE}"
+			LINK_TARGET=$(readlink "${CURRENT_SOURCE}") && [[ -n ${LINK_TARGET} ]] || fail "Unable to get link's target: ${CURRENT_SOURCE}"
 			[[ ${LINK_TARGET} == /* ]] && fail "Symbolic-link path nodes that resolve to absolute paths are not yet supported: \"${CURRENT_SOURCE}\" -> \"${LINK_TARGET}\""
 
 			if [[ -e ${DEST_DIR}${CURRENT_SOURCE} ]]; then
