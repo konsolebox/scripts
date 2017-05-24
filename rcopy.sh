@@ -103,7 +103,7 @@ function get_clean_path {
 
 function cp {
 	local messages r
-	messages=$(command cp "$@" 2>&1)
+	messages=$(exec cp "$@" 2>&1)
 	r=$?
 
 	if [[ -n ${messages} ]]; then
