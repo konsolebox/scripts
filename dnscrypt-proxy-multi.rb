@@ -40,6 +40,7 @@ VERSION = '2017-08-28'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
+WAIT_FOR_CONNECTION_FAILED_ICMP_PING_PAUSE = 1
 DEFAULT_PORT = 443
 
 @exit_status = 1
@@ -251,7 +252,8 @@ def wait_for_connection
             fail "Failed to wait for connection: #{ex.message}"
           end
         else
-          Net::Ping::ICMP.new(host, WAIT_FOR_CONNECTION_TIMEOUT).ping
+          return if Net::Ping::ICMP.new(host, WAIT_FOR_CONNECTION_TIMEOUT).ping
+          sleep WAIT_FOR_CONNECTION_FAILED_ICMP_PING_PAUSE
         end
       rescue Errno::ENETUNREACH
         sleep WAIT_FOR_CONNECTION_NETUNREACH_PAUSE
