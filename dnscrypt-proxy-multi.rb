@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# April 30, 2016
+# April 30, 2016 (Last Updated 2017/08/28)
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2016-06-20'
+VERSION = '2017-08-28'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -681,7 +681,7 @@ Options:"
 
     Signal.trap('TERM') do
       log_message "SIGTERM caught."
-      stop_instances
+      stop_instances unless @pids.empty?
       exit 1
     end
 
@@ -921,7 +921,7 @@ Options:"
     @exit_status = 0 if r.is_a?(Array) and r.all?{ |a| a.last.exitstatus == 0 }
   rescue Interrupt
     log_message "SIGINT caught."
-    stop_instances if @pids
+    stop_instances unless @pids.empty?
   ensure
     log_message "Exiting."
     @log_file.close if @log_file
