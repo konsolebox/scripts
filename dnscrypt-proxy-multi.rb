@@ -477,7 +477,7 @@ Options:"
   end
 
   parser.on("-d", "--dnscrypt-proxy=PATH", "Set path to dnscrypt-proxy executable.",
-  "Default is \"#{@params.dnscrypt_proxy}\".") do |path|
+  "Default is \"#{which('dnscrypt-proxy')}\".") do |path|
     fail "Not executable or file does not exist: #{path}" unless executable_file?(path)
     @params.dnscrypt_proxy = path
   end
