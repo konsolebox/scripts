@@ -4,32 +4,33 @@
 
 # libfind.sh
 #
-# Finds library files based on expressions.
+# Finds library files with the use of expressions.
 #
-# By default it searches for files in directories specified in
-# /etc/ld.so.conf but it can be configured to use other directories
+# By default, it searches for files in directories specified in
+# /etc/ld.so.conf, but it can be configured to use other directories
 # instead.
 #
 # Usage: libfind[.sh] [options] [-e] expression [[--] expression ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 11, 2015
+# Aug. 28, 2017
 
 # ----------------------------------------------------------------------
 
-VERSION='2015-06-11'
+VERSION='2017-08-28'
 
-[[ ${BASH_VERSINFO} -ge 4 ]] || {
+[[ $BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
 	exit 1
 }
 
 shopt -s extglob
+shopt -so noglob
 
+declare -A LD_CONF_HASH=()
 declare -a LIB_PATHS=()
-declare -A LD_CONF_FLAGS=()
-declare -a COMMON_LIB_PATHS=(
+declare -a LIB_PATHS_COMMON=(
 	/usr/x86_64-pc-linux-gnu/lib64
 	/usr/x86_64-pc-linux-gnu/lib32
 	/usr/x86_64-pc-linux-gnu/libx32
@@ -63,7 +64,7 @@ Use of common paths:
   -c                Search in common library directories instead of those
                     specified in /etc/ld.so.conf.
   -C                Same as -c but adds the common library directories
-                    into the list derived from /etc/ld.so.conf.
+                    into the list extracted from /etc/ld.so.conf.
 
 Glob-based Types:
   -p, --path        Treat all expressions as keywords that would match
@@ -71,8 +72,8 @@ Glob-based Types:
   -x, --exact       Treat all expressions as exact glob patterns.  No
                     extra wildcard character is added before or after
                     the keyword.
-  -X, --exact-path  Same as -x but the glob pattern would apply to the
-                    whole path and not just the filename.
+  -X, --exact-path  Same as -x, but the glob pattern applies with the
+                    whole path, and not just the filename.
 
 Regex-based Types:
       --awk         Treat all expressions as Awk regular expressions.
@@ -88,7 +89,6 @@ Modifiers:
 Others:
   -e                Imply that the following argument is an expression.
   -h, --help        Show this help info.
-  -v, --verbose     Be verbose.  (Doesn't really do anything yet.)
   -V, --version     Show version.
 
 Notes:
@@ -104,59 +104,70 @@ When no expression type is specified, it defaults to glob patterns." >&2
 }
 
 function get_clean_path {
-	local T1 T2=() I=0 IFS=/
+	local t=() i=0 IFS=/
 
-	if [[ $1 == /* ]]; then
-		read -ra T1 <<< "$1"
-	else
-		read -ra T1 <<< "${PWD}/$1"
-	fi
+	case $1 in
+	/*)
+		set -- $1
+		;;
+	*)
+		set -- $PWD $1
+		;;
+	esac
 
-	for __ in "${T1[@]}"; do
+	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && unset 'T2[--I]'
+			(( i )) && unset 't[--i]'
 			continue
 			;;
-		.|'')
+		''|.)
 			continue
 			;;
 		esac
 
-		T2[I++]=$__
+		t[i++]=$__
 	done
 
-	__="/${T2[*]}"
+	__="/${t[*]}"
 }
 
 function get_lib_paths {
-	[[ -z ${LD_CONF_FLAGS[$1]} && -f $1 && -r $1 ]] || return
+	# This function tries to comply with ldconfig's behavior.
+	# See parse_conf() and parse_conf_include() in ldconfig.c.
 
-	LD_CONF_FLAGS[$1]=.
+	# It expects that IFS is set to default value, and that noglob is set.
 
-	while read __; do
-		case $__ in
-		/*)
-			get_clean_path "$__"
-			LIB_PATHS+=("$__")
-			;;
-		include\ *)
-			local PATTERN=${__##include+([[:blank:]])}
+	local file=$1
 
-			if [[ -n ${PATTERN} ]]; then
-				if [[ ${PATTERN} == /* ]]; then
-					get_clean_path "${PATTERN}"
-				else
-					get_clean_path "$1/../${PATTERN}"
-				fi
+	if [[ -z ${LD_CONF_HASH[$file]} && -f $file && -r $file ]]; then
+		LD_CONF_HASH[$file]=.
 
-				while read __; do
-					get_lib_paths "$__"
-				done < <(compgen -G "$__")
-			fi
-			;;
-		esac
-	done < "$1"
+		while read -r __; do
+			case $__ in
+			/*)
+				get_clean_path "$__"
+				LIB_PATHS+=("$__")
+				;;
+			include\ *)
+				set -- $__
+				shift
+
+				for __; do
+					if [[ $__ == /* ]]; then
+						get_clean_path "$__"
+					else
+						get_clean_path "$file/../$__"
+					fi
+
+					while read -r __; do
+						get_lib_paths "$__"
+					done < <(compgen -G "$__")
+				done
+				;;
+			esac
+		done < "$file"
+	fi
 }
 
 function fail {
@@ -165,181 +176,165 @@ function fail {
 }
 
 function main {
-	local CASE_SENSITIVE=false EXPRESSIONS=() MODE=default USE_OR_ADD_COMMON_PATHS=false __
+	local case_sensitive=false expressions=() mode=default use_or_add_common_paths=false __
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-c)
-			[[ ${USE_OR_ADD_COMMON_PATHS} == add ]] && fail "You can only specify one of -c and -C."
-			USE_OR_ADD_COMMON_PATHS=use
+			[[ $use_or_add_common_paths == add ]] && fail "You can only specify one of -c and -C."
+			use_or_add_common_paths=use
 			;;
 		-C)
-			[[ ${USE_OR_ADD_COMMON_PATHS} == use ]] && fail "You can only specify one of -c and -C."
-			USE_OR_ADD_COMMON_PATHS=add
+			[[ $use_or_add_common_paths == use ]] && fail "You can only specify one of -c and -C."
+			use_or_add_common_paths=add
 			;;
 		--awk|--egrep|--emacs)
-			MODE=${1#--}
+			mode=${1#--}
 			;;
 		-E|--extended)
-			MODE=extended
+			mode=extended
 			;;
 		-p|--path)
-			MODE=path
+			mode=path
 			;;
 		-r|--regex)
-			MODE=basic
+			mode=basic
 			;;
 		-x|--exact)
-			MODE=exact_pattern
+			mode=exact_pattern
 			;;
 		-X)
-			MODE=exact_path_pattern
+			mode=exact_path_pattern
 			;;
 		-s)
-			CASE_SENSITIVE=true
+			case_sensitive=true
 			;;
 		-e)
 			shift
 			[[ $# -eq 0 ]] && error "No argument follows -e."
-			EXPRESSIONS+=("$1")
+			expressions+=("$1")
 			;;
 		-h|--help)
 			show_help_info
 			exit 1
 			;;
-		-v|--verbose)
-			VERBOSE=true
-			;;
 		-V|--version)
-			echo "${VERSION}" >&2
+			echo "$VERSION" >&2
 			exit 1
 			;;
 		--)
-			EXPRESSIONS=("${EXPRESSIONS[@]}" "${@:2}")
+			expressions+=("${@:2}")
 			break
 			;;
 		-*)
 			fail "Invalid option: $1"
 			;;
 		*)
-			EXPRESSIONS+=("$1")
+			expressions+=("$1")
 			;;
 		esac
 
 		shift
 	done
 
-	[[ ${#EXPRESSIONS[@]} -eq 0 ]] && fail "No expression was specified."
+	[[ ${#expressions[@]} -eq 0 ]] && fail "No expression was specified.  Run with --help to get usage info."
 
-	if [[ ${MODE} == @(default|exact_pattern) ]]; then
-		for __ in "${EXPRESSIONS[@]}"; do
-			[[ $__ == */* ]] && \
-				fail \
-					"You can't include a backslash character (/) when matching against a filename." \
-					"Please run libfind with --help to see other search methods."
+	if [[ $mode == @(default|exact_pattern) ]]; then
+		for __ in "${expressions[@]}"; do
+			if [[ $__ == */* ]]; then
+				fail "You can't include a forward-slash character (/) when matching against a filename." \
+						"Please run libfind with --help to see other search methods."
+			fi
 		done
 	fi
 
-	if [[ ${USE_OR_ADD_COMMON_PATHS} == use ]]; then
-		LIB_PATHS=("${COMMON_LIB_PATHS[@]}")
+	if [[ $use_or_add_common_paths == use ]]; then
+		LIB_PATHS=("${LIB_PATHS_COMMON[@]}")
 	else
 		get_lib_paths /etc/ld.so.conf
 
-		if [[ ${USE_OR_ADD_COMMON_PATHS} == add ]]; then
-			LIB_PATHS+=("${COMMON_LIB_PATHS[@]}")
+		if [[ $use_or_add_common_paths == add ]]; then
+			LIB_PATHS+=("${LIB_PATHS_COMMON[@]}")
 		fi
 	fi
 
-	local T=("${!LIB_PATHS[@]}") I=0 J C=${#T[@]} D=0
+	local lib_paths_filtered=()
+	local -A hash=()
 
-	for (( ; I < C; ++I )); do
-		for (( J = I + 1; J < C; ++J )); do
-			[[ ${LIB_PATHS[${T[I]}]} == "${LIB_PATHS[${T[J]}]}" ]] && {
-				unset "LIB_PATHS[${T[J]}]" 'T[J]'
-				(( ++D ))
-			}
-		done
-
-		[[ D -gt 0 ]] && {
-			T=("${T[@]:I + 1}")
-			(( C -= D + I + 1, I = -1, D = 0 ))
-		}
+	for __ in "${LIB_PATHS[@]}"; do
+		if [[ $__ != *([[:blank:]]) && -z ${hash[$__]} && -d $__ && -r $__ && -x $__ ]]; then
+			lib_paths_filtered+=("$__")
+			hash[$__]=.
+		fi
 	done
 
-	for I in "${!LIB_PATHS[@]}"; do
-		__=${LIB_PATHS[I]}
-		[[ $__ == *([[:blank:]]) || ! -d $__ || ! -r $__ || ! -x $__ ]] && unset "LIB_PATHS[$I]"
-	done
+	[[ ${#lib_paths_filtered[@]} -eq 0 ]] && return 1
 
-	[[ ${#LIB_PATHS[@]} -eq 0 ]] && return 1
+	local name_opt='-iname' path_opt='-ipath' regex_opt='-iregex'
 
-	local NAME_OPT='-iname' PATH_OPT='-ipath' REGEX_OPT='-iregex'
-
-	if [[ ${CASE_SENSITIVE} == true ]]; then
-		NAME_OPT='-name'
-		REGEX_OPT='-regex'
-		PATH_OPT='-path'
+	if [[ $case_sensitive == true ]]; then
+		name_opt='-name'
+		regex_opt='-regex'
+		path_opt='-path'
 	fi
 
-	local EXPR_OPT=${NAME_OPT} REGEX_TYPE_ARGS=() ADD_WILDCARDS=true
+	local expr_opt=$name_opt regex_type_args=() add_wildcards=true
 
-	case ${MODE} in
+	case $mode in
 	awk)
-		EXPR_OPT=${REGEX_OPT}
-		REGEX_TYPE_ARGS=(-regextype posix-awk)
-		ADD_WILDCARDS=false
+		expr_opt=$regex_opt
+		regex_type_args=(-regextype posix-awk)
+		add_wildcards=false
 		;;
 	basic)
-		EXPR_OPT=${REGEX_OPT}
-		REGEX_TYPE_ARGS=(-regextype posix-basic)
-		ADD_WILDCARDS=false
+		expr_opt=$regex_opt
+		regex_type_args=(-regextype posix-basic)
+		add_wildcards=false
 		;;
 	emacs)
-		EXPR_OPT=${REGEX_OPT}
-		REGEX_TYPE_ARGS=(-regextype emacs)
-		ADD_WILDCARDS=false
+		expr_opt=$regex_opt
+		regex_type_args=(-regextype emacs)
+		add_wildcards=false
 		;;
 	egrep)
-		EXPR_OPT=${REGEX_OPT}
-		REGEX_TYPE_ARGS=(-regextype posix-egrep)
-		ADD_WILDCARDS=false
+		expr_opt=$regex_opt
+		regex_type_args=(-regextype posix-egrep)
+		add_wildcards=false
 		;;
 	extended)
-		EXPR_OPT=${REGEX_OPT}
-		REGEX_TYPE_ARGS=(-regextype posix-extended)
-		ADD_WILDCARDS=false
+		expr_opt=$regex_opt
+		regex_type_args=(-regextype posix-extended)
+		add_wildcards=false
 		;;
 	exact_pattern)
-		EXPR_OPT=${NAME_OPT}
-		REGEX_TYPE_ARGS=()
-		ADD_WILDCARDS=false
+		expr_opt=$name_opt
+		regex_type_args=()
+		add_wildcards=false
 		;;
 	exact_path_pattern)
-		EXPR_OPT=${PATH_OPT}
-		REGEX_TYPE_ARGS=()
-		ADD_WILDCARDS=false
+		expr_opt=$path_opt
+		regex_type_args=()
+		add_wildcards=false
 		;;
 	path)
-		EXPR_OPT=${PATH_OPT}
-		REGEX_TYPE_ARGS=()
+		expr_opt=$path_opt
+		regex_type_args=()
 		;;
 	esac
 
-	local EXPR_ARGS=()
+	local expr_args=()
 
-	if [[ ${ADD_WILDCARDS} == true ]]; then
-		for __ in "${EXPRESSIONS[@]}"; do
-			EXPR_ARGS+=("${EXPR_OPT}" "*$__*" -and)
+	if [[ $add_wildcards == true ]]; then
+		for __ in "${expressions[@]}"; do
+			expr_args+=("$expr_opt" "*$__*")
 		done
 	else
-		for __ in "${EXPRESSIONS[@]}"; do
-			EXPR_ARGS+=("${EXPR_OPT}" "$__" -and)
+		for __ in "${expressions[@]}"; do
+			expr_args+=("$expr_opt" "$__")
 		done
 	fi
 
-	unset "EXPR_ARGS[${#EXPR_ARGS[@]} - 1]"
-
-	find "${LIB_PATHS[@]}" -maxdepth 1 -xtype f "${REGEX_TYPE_ARGS[@]}" "${EXPR_ARGS[@]}"
+	find "${lib_paths_filtered[@]}" -maxdepth 1 -xtype f "${regex_type_args[@]}" "${expr_args[@]}"
 }
 
 main "$@"
