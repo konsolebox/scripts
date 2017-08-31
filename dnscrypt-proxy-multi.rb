@@ -480,9 +480,9 @@ Options:"
   end
 
   parser.on("-C", "--change-owner=USER[:GROUP]",
-  "Change ownership of directories to specified user-group before opening files",
-  "instantiating dnscrypt-proxy's, and dropping privilege to a user if",
-  "configured.") do |user_group|
+  "Change ownership of directories to user-group before doing anything",
+  "significant like opening files, instantiating dnscrypt-proxy's, or dropping",
+  "privilege to a user or group if configured.") do |user_group|
     fail "User can't be an empty string." if user_group.empty?
     @params.change_owner = user_group
   end
