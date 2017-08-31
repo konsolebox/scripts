@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# April 30, 2016 (Last Updated 2017/08/28)
+# April 30, 2016 (Last Updated 2017/08/31)
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2017-08-28'
+VERSION = '2017-08-31'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -408,7 +408,10 @@ def stop_instances
   log_message "Stopping instances."
 
   @pids.each do |pid|
-    Process.kill('TERM', pid) rescue Errno::ESRCH
+    begin
+      Process.kill('TERM', pid)
+    rescue Errno::ESRCH
+    end
   end
 end
 
@@ -896,8 +899,13 @@ Options:"
             rescue Resolv::ResolvError => ex
               log_error "Resolve error: #{ex.message}"
               log_verbose "Stopping instance."
-              Process.kill('TERM', pid) rescue SystemCallError
-              Process.wait(pid) rescue SystemCallError
+
+              begin
+                Process.kill('TERM', pid)
+                Process.wait(pid)
+              rescue SystemCallError
+              end
+
               failed = true
               break
             end
