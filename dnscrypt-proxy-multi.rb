@@ -410,7 +410,7 @@ def stop_instances
   @pids.each do |pid|
     begin
       Process.kill('TERM', pid)
-    rescue Errno::ESRCH
+    rescue SystemCallError
     end
   end
 end
