@@ -445,13 +445,13 @@ def main
   parser = OptionParser.new
 
   parser.on_tail("-h", "--help", "Show this help info and exit.") do
-    $stderr.puts "dnscrypt-proxy-multi #{VERSION}
-Runs multiple instances of dnscrypt-proxy.
-
-Usage: #{$0} [options] [-- [extra_dnscrypt_proxy_opts]]
-
-Options:"
-    $stderr.puts $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }.reject{ |e| e =~ /--resolver-check/ }
+    $stderr.puts "dnscrypt-proxy-multi #{VERSION}"
+    $stderr.puts "Runs multiple instances of dnscrypt-proxy."
+    $stderr.puts
+    $stderr.puts "Usage: #{$0} [options] [-- [extra_dnscrypt_proxy_opts]]"
+    $stderr.puts
+    $stderr.puts "Options:"
+    $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }.reject{ |e| e =~ /--resolver-check/ }
     $stderr.puts
     $stderr.puts "Notes:"
     $stderr.puts "* Directories are automatically created recursively when needed."
