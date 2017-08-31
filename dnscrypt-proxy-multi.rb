@@ -50,19 +50,21 @@ DEFAULT_PORT = 443
 @syslog_logger = nil
 
 @params = Struct.new(
-  :change_owner, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args,
-  :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix,
-  :dnscrypt_proxy_user, :ephemeral_keys, :group, :ignore_ip_format,
-  :instance_delay, :local_ip_range, :local_port_range, :log, :log_dir,
-  :log_file, :log_level, :log_overwrite, :max_instances,
-  :port_check_async, :port_check_timeout, :resolvers_list,
-  :resolvers_list_encoding, :resolver_check, :resolver_check_timeout,
-  :resolver_check_wait, :syslog, :syslog_prefix, :user, :verbose,
+  :change_owner, :check_resolvers, :check_resolvers_timeout,
+  :check_resolvers_wait, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args,
+  :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix, :dnscrypt_proxy_user,
+  :ephemeral_keys, :group, :ignore_ip_format, :instance_delay, :local_ip_range,
+  :local_port_range, :log, :log_dir, :log_file, :log_level, :log_overwrite,
+  :max_instances, :port_check_async, :port_check_timeout, :resolvers_list,
+  :resolvers_list_encoding, :syslog, :syslog_prefix, :user, :verbose,
   :wait_for_connection, :write_pids, :write_pids_dir
 ).new
 
 def initialize_params
   @params.change_owner = nil
+  @params.check_resolvers = nil
+  @params.check_resolvers_timeout = 5.0
+  @params.check_resolvers_wait = 0.1
   @params.debug = false
   @params.dnscrypt_proxy = nil
   @params.dnscrypt_proxy_extra_args = nil
@@ -84,9 +86,6 @@ def initialize_params
   @params.port_check_timeout = 5.0
   @params.resolvers_list = '/usr/share/dnscrypt-proxy/dnscrypt-resolvers.csv'
   @params.resolvers_list_encoding = 'utf-8'
-  @params.resolver_check = nil
-  @params.resolver_check_timeout = 5.0
-  @params.resolver_check_wait = 0.1
   @params.syslog = false
   @params.syslog_prefix = ''
   @params.user = nil
@@ -415,6 +414,27 @@ def stop_instances
   end
 end
 
+def parse_check_resolvers_arg(arg)
+  fqdn_list, timeout, wait = arg.split('/')
+  fqdn_list = fqdn_list.split(',')
+
+  if timeout and not timeout.empty?
+    timeout = Float(timeout) rescue fail("Invalid timeout value: #{timeout}")
+    @params.check_resolvers_timeout = timeout
+  end
+
+  if wait and not wait.empty?
+    wait = Float(wait) rescue fail("Invalid waiting time value: #{timeout}")
+    @params.check_resolvers_wait = wait
+  end
+
+  fqdn_list.each do |e|
+    fail "Not a valid FQDN: #{e}" unless valid_fqdn?(e)
+  end
+
+  @params.check_resolvers = fqdn_list
+end
+
 def main
   initialize_params
 
@@ -431,7 +451,7 @@ Runs multiple instances of dnscrypt-proxy.
 Usage: #{$0} [options] [-- [extra_dnscrypt_proxy_opts]]
 
 Options:"
-    $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }
+    $stderr.puts $stderr.puts parser.summarize([], 3, 80, "").map{ |e| e.gsub(/^ {4}--/, '--') }.reject{ |e| e =~ /--resolver-check/ }
     $stderr.puts
     $stderr.puts "Notes:"
     $stderr.puts "* Directories are automatically created recursively when needed."
@@ -446,29 +466,17 @@ Options:"
     exit 1
   end
 
-  parser.on("-c", "--resolver-check=FQDN[,FQDN2][/TIMEOUT[/WAIT]]",
+  parser.on("-c", "--check-resolvers=FQDN[,FQDN2][/TIMEOUT[/WAIT]]",
   "Check instances of dnscrypt-proxy if they can resolve all specified FQDN",
   "and replace them with another instance that targets another resolver entry",
-  "if they don't.  Default timeout is #{@params.resolver_check_timeout}.  Default amount of wait-time to",
-  "allow an instance to load and initialize before checking it is #{@params.resolver_check_wait}.") do |fqdn_timeout|
-    fqdn_list, timeout, wait = fqdn_timeout.split('/')
-    fqdn_list = fqdn_list.split(',')
+  "if they don't.  Default timeout is #{@params.check_resolvers_timeout}.  Default amount of wait-time to",
+  "allow an instance to load and initialize before checking it is #{@params.check_resolvers_wait}.") do |arg|
+    parse_check_resolvers_arg arg
+  end
 
-    if timeout and not timeout.empty?
-      timeout = Float(timeout) rescue fail("Invalid timeout value: #{timeout}")
-      @params.resolver_check_timeout = timeout
-    end
-
-    if wait and not wait.empty?
-      wait = Float(wait) rescue fail("Invalid waiting time value: #{timeout}")
-      @params.resolver_check_wait = wait
-    end
-
-    fqdn_list.each do |e|
-      fail "Not a valid FQDN: #{e}" unless valid_fqdn?(e)
-    end
-
-    @params.resolver_check = fqdn_list
+  parser.on("--resolver-check=FQDN[,FQDN2][/TIMEOUT[/WAIT]]") do |arg|
+    log_warning "Option '--resolver-check' is deprecated and will soon be removed.  Please use '--check-resolvers' instead."
+    parse_check_resolvers_arg arg
   end
 
   parser.on("-C", "--change-owner=USER[:GROUP]",
@@ -882,18 +890,18 @@ Options:"
           next
         end
 
-        if @params.resolver_check
+        if @params.check_resolvers
           failed = false
 
-          @params.resolver_check.each do |fqdn|
+          @params.check_resolvers.each do |fqdn|
             log_message "Checking if #{entry.resolver_address} (#{local_ip}:#{local_port}) can resolve #{fqdn}."
-            log_verbose "Timeout is #{@params.resolver_check_timeout}."
+            log_verbose "Timeout is #{@params.check_resolvers_timeout}."
 
-            sleep @params.resolver_check_wait
+            sleep @params.check_resolvers_wait
 
             begin
               r = Resolv::DNS.new(nameserver_port: [[local_ip, local_port]])
-              r.timeouts = @params.resolver_check_timeout
+              r.timeouts = @params.check_resolvers_timeout
               ipv4 = r.getaddress(fqdn)
               log_message "Success: #{ipv4.to_name.to_s.gsub(/\.in-addr\.arpa$/, '')}"
             rescue Resolv::ResolvError => ex
