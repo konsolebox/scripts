@@ -43,6 +43,23 @@ WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
 WAIT_FOR_CONNECTION_FAILED_ICMP_PING_PAUSE = 1
 DEFAULT_PORT = 443
 
+HEADER_MAP = {
+  :name => 'Name',
+  :full_name => 'Full name',
+  :description => 'Description',
+  :location => 'Location',
+  :coordinates => 'Coordinates',
+  :url => 'URL',
+  :version => 'Version',
+  :dnssec => 'DNSSEC validation',
+  :no_logs => 'No logs',
+  :namecoin => 'Namecoin',
+  :resolver_addr => 'Resolver address',
+  :provider_name => 'Provider name',
+  :provider_key => 'Provider public key',
+  :provider_key_txt => 'Provider public key TXT record'
+}.freeze
+
 @exit_status = 1
 @log_buffer = []
 @log_file = nil
@@ -53,12 +70,13 @@ DEFAULT_PORT = 443
   :change_owner, :check_resolvers, :check_resolvers_timeout,
   :check_resolvers_wait, :debug, :dnscrypt_proxy, :dnscrypt_proxy_extra_args,
   :dnscrypt_proxy_syslog, :dnscrypt_proxy_syslog_prefix, :dnscrypt_proxy_user,
-  :ephemeral_keys, :group, :ignore_ip_format, :instance_delay, :local_ip_range,
-  :local_port_range, :log, :log_dir, :log_file, :log_level, :log_overwrite,
-  :max_instances, :port_check_async, :port_check_timeout, :resolvers_list,
-  :resolvers_list_encoding, :syslog, :syslog_prefix, :user, :verbose,
-  :wait_for_connection, :write_pids, :write_pids_dir
-).new
+  :dnssec_only, :ephemeral_keys, :group, :ifilters, :ignore_ip_format,
+  :instance_delay, :local_ip_range, :local_port_range, :log, :log_dir,
+  :log_file, :log_level, :log_overwrite, :max_instances, :port_check_async,
+  :port_check_timeout, :resolvers_list, :resolvers_list_encoding, :syslog,
+  :syslog_prefix, :user, :verbose, :wait_for_connection, :write_pids,
+  :write_pids_dir, :xfilters
+).freeze.new
 
 def initialize_params
   @params.change_owner = nil
@@ -72,6 +90,7 @@ def initialize_params
   @params.dnscrypt_proxy_user = nil
   @params.ephemeral_keys = false
   @params.group = nil
+  @params.ifilters = []
   @params.ignore_ip_format = false
   @params.instance_delay = 0.0
   @params.local_ip_range = '127.0.100.1-254'
@@ -93,6 +112,7 @@ def initialize_params
   @params.wait_for_connection = nil
   @params.write_pids = false
   @params.write_pids_dir = '/var/run/dnscrypt-proxy-multi'
+  @params.xfilters = []
 end
 
 def log(msg, stderr, syslog_method, prefix = '')
@@ -428,11 +448,136 @@ def parse_check_resolvers_arg(arg)
     @params.check_resolvers_wait = wait
   end
 
-  fqdn_list.each do |e|
+  @params.check_resolvers = fqdn_list.map do |e|
+    fqdn, sep, option = e.partition(":")
+    validate_with_dnssec = option == 'dnssec'
+    fail "Invalid FQDN option: #{option}" unless validate_with_dnssec or option.empty?
     fail "Not a valid FQDN: #{e}" unless valid_fqdn?(e)
+    [fqdn, validate_with_dnssec]
+  end
+end
+
+class Expression
+  class Options
+    attr_reader :regex
+    attr_reader :multiline
+    attr_reader :full_string_match
+    attr_reader :ignore_case
+
+    def initialize(opts = '')
+      raise "Expecting string, not #{opts.class}." unless opts.is_a? String
+
+      opts.split('').each do |char|
+        case char
+        when 'm'
+          @multiline = true
+        when 'i'
+          @ignore_case = true
+        when 'r'
+          @regex = true
+        when 'f'
+          @full_string_match = true
+        else
+          fail "Invalid expression option: #{char}"
+        end
+      end
+
+      fail "Option full string match ('m') can't be used along with regex ('r')." if @regex and @full_string_match
+      fail "Option multiline ('m') can only be used with regex ('r')." if @multiline and not @regex
+
+      @to_s = opts.dup.freeze
+    end
+
+    def +(opts)
+      self.class.new(@to_s + opts.to_s)
+    end
+
+    def to_s
+      @to_s
+    end
   end
 
-  @params.check_resolvers = fqdn_list
+  attr_reader :expression
+  attr_reader :options
+
+  DEFAULT_OPTIONS = Options.new('')
+
+  def initialize(expr, opts = DEFAULT_OPTIONS)
+    raise "Unexpected argument type for options: #{opts.class}." unless opts.is_a? String or opts.is_a? Options
+    fail "Expression can't be empty." if expr.empty?
+    @options = opts.is_a?(Options) ? opts : Options.new(opts)
+
+    if @options.regex
+      i = 0
+      i |= Regexp::MULTILINE if @options.multiline
+      i |= Regexp::IGNORECASE if @options.ignore_case
+      @expression = Regexp.new(expr, i)
+    elsif @options.ignore_case
+      @expression = expr.downcase
+    else
+      @expression = expr
+    end
+  end
+
+  def validates?(str)
+    raise "Expecting string to validate to be string." unless str.is_a? String
+
+    if @options.regex
+      @expression.match?(str)
+    else
+      str = str.downcase if @options.ignore_case
+
+      if @options.full_string_match
+        str == @expression
+      else
+        not str[@expression].nil?
+      end
+    end
+  end
+end
+
+def parse_filter_arg(arg, hash = {})
+  global_opts, sep, etc = arg.partition(':')
+
+  if not sep.empty? and not global_opts['=']
+    global_opts = Expression::Options.new(global_opts)
+    arg = etc
+  else
+    global_opts = nil
+  end
+
+  arg.split(',').each do |pair|
+    name_and_opts, sep, keyword = pair.partition('=')
+    fail "Keyword or regex not specified." if keyword.empty?
+    name, opts, etc, = name_and_opts.split('/')
+    fail "Invalid extra argument: #{etc}" if etc
+    sym = name.to_sym
+    fail "Invalid column name: #{name}" unless HEADER_MAP.has_key? sym or sym == :*
+
+    opts = opts ?
+        (global_opts ? global_opts.to_s + opts : opts) :
+        (global_opts || Expression::DEFAULT_OPTIONS)
+
+    (hash[name.to_sym] ||= []) << Expression.new(keyword, opts)
+  end
+
+  hash
+end
+
+def all_expressions_match?(filter_pairs, row)
+  raise "Expecting filter_pairs to be not empty." if filter_pairs.empty?
+
+  filter_pairs.all? do |name, expressions|
+    if name == :*
+      expressions.all? do |expr|
+        row.fields.any?{ |value| value and expr.validates?(value) }
+      end
+    else
+      value = row[HEADER_MAP[name]] and expressions.all? do |expr|
+        expr.validates?(value)
+      end
+    end
+  end
 end
 
 def main
@@ -466,7 +611,7 @@ def main
     exit 1
   end
 
-  parser.on("-c", "--check-resolvers=FQDN[,FQDN2][/TIMEOUT[/WAIT]]",
+  parser.on("-c", "--check-resolvers=FQDN[:dnssec][,FQDN2[:dnssec],...][/TIMEOUT[/WAIT]]",
   "Check instances of dnscrypt-proxy if they can resolve all specified FQDN",
   "and replace them with another instance that targets another resolver entry",
   "if they don't.  Default timeout is #{@params.check_resolvers_timeout}.  Default amount of wait-time to",
@@ -474,7 +619,7 @@ def main
     parse_check_resolvers_arg arg
   end
 
-  parser.on("--resolver-check=FQDN[,FQDN2][/TIMEOUT[/WAIT]]") do |arg|
+  parser.on("--resolver-check=FQDN[:dnssec][,FQDN2[:dnssec][,...]][/TIMEOUT[/WAIT]]") do |arg|
     log_warning "Option '--resolver-check' is deprecated and will soon be removed.  Please use '--check-resolvers' instead."
     parse_check_resolvers_arg arg
   end
@@ -503,6 +648,49 @@ def main
   "Pass --ephemeral-keys option to every instance of dnscrypt-proxy.",
   "See dnscrypt-proxy(8) for more info.") do
     @params.ephemeral_keys = true
+  end
+
+  parser.on("-f", "--filter=[GLOBAL_OPTS:]NAME[/OPTS]=KEYWORD[,NAME2[/OPTS2]=KEYWORD2[,...]]",
+  "This option inclusively filters resolver entries.  The NAME refers to a",
+  "particular column in the CSV table, and the KEYWORD is a string that matches",
+  "or submatches the entry's value in the column.  Multiple NAME=KEYWORD pairs",
+  "can be specified, and a NAME can be specified more than once so that more",
+  "keywords can be used to filter a column.  If NAME is '*', the KEYWORD will",
+  "validate if it matches with any column.  Every instance that this options is",
+  "used defines a filter group.  The entry becomes valid for inclusion once",
+  "all keywords in a filter group validates with its values.  Multiple filter",
+  "groups can be specified to allow different ways to validate an entry for",
+  "inclusion.",
+  " ",
+  "Options can also be included to change how keyword-matching is performed.",
+  "The usable options are 'r' (regex mode), 'm' (multi-line matching), 'i'",
+  "(ignore-case)', and 'f' (full string matching).  Multi-line matching can",
+  "only be used with 'r' (regex mode), while full-string matching can only be",
+  "used without it.",
+  " ",
+  "The following table shows the usable names:",
+  " --------------------------------------------------------------------------",
+  "| Name             | CSV Header String   | Details                         |",
+  "| ---------------- | --------------------| --------------------------------|",
+  "| name             | Name                |                                 |",
+  "| full_name        | Full name           |                                 |",
+  "| description      | Description         |                                 |",
+  "| location         | Location            |                                 |",
+  "| coordinates      | Coordinates         |                                 |",
+  "| url              | URL                 |                                 |",
+  "| version          | Version             |                                 |",
+  "| dnssec           | DNSSEC Validation   | Values are 'yes' or 'no'.       |",
+  "| no_logs          | No logs             | Values are 'yes' or 'no'.       |",
+  "| namecoin         | Namecoin            | Values are 'yes' or 'no'.       |",
+  "| resolver_addr    | Resolver address    | IP address with port.  It's the |",
+  "|                  |                     | argument to dnscrypt-proxy's    |",
+  "|                  |                     | '--resolver-address' option.    |",
+  "| provider_name    | Provider name       | Argument to '--provider-name'.  |",
+  "| provider_key     | Provider public key | Argument to '--provider-key'.   |",
+  "| provider_key_txt | Provider public key |                                 |",
+  "|                  | TXT record          |                                 |",
+  " --------------------------------------------------------------------------") do |arg|
+    @params.ifilters << parse_filter_arg(arg)
   end
 
   parser.on("-g", "--group=GROUP",
@@ -648,6 +836,17 @@ def main
     @params.write_pids_dir = dir if dir
   end
 
+  parser.on("-x", "--exclude=[GLOBAL_OPTS:]NAME[/OPTS]=KEYWORD[,NAME2=KEYWORD2[/OPTS2][,...]]",
+  "This option behaves similar to -f or --filter, but it directs entries to be",
+  "excluded than included.") do |arg|
+    @params.xfilters << parse_filter_arg(arg)
+  end
+
+  parser.on("-z", "--dnssec-only", "Only use resolvers that support DNSSEC validation.",
+  "This gives same effect as --filter=dnssec=yes or --exclude=dnssec=no.") do
+    @params.dnssec_only = true
+  end
+
   parser.on("-Z", "--dnscrypt-proxy-syslog [PREFIX]",
   "Tell dnscrypt-proxy to log messages to system log.  It is automatically",
   "configured to have a prefix of '[REMOTE_IP:PORT]'. If PREFIX is specified,",
@@ -745,11 +944,19 @@ def main
     #
 
     entries = []
+    raw_count = 0
 
-    CSV.foreach(@params.resolvers_list, encoding: @params.resolvers_list_encoding) do |row|
-      resolver_address, provider_name, provider_key = row.values_at(10, 11, 12)
+    CSV.foreach(@params.resolvers_list, encoding: @params.resolvers_list_encoding, headers: true) do |row|
+      dnssec_validation, resolver_address, provider_name, provider_key = row.values_at(HEADER_MAP[:dnssec],
+          HEADER_MAP[:resolver_addr], HEADER_MAP[:provider_name], HEADER_MAP[:provider_key])
 
-      if not resolver_address =~ /^([[:alnum:]]{1,3}.){3}[[:alnum:]]{1,3}(:[[:digit:]]+)?$/
+      if @params.dnssec_only and dnssec_validation != 'yes'
+        log_verbose "Ignoring entry that doesn't support DNSSEC validation: #{resolver_address}"
+      elsif not @params.ifilters.empty? and not @params.ifilters.any?{ |set| all_expressions_match?(set, row) }
+        log_verbose "Ignoring entry that doesn't match any inclusive filter set: #{resolver_address}"
+      elsif not @params.xfilters.empty? and @params.xfilters.any?{ |set| all_expressions_match?(set, row) }
+        log_verbose "Ignoring entry that matches an exclusive filter set: #{resolver_address}"
+      elsif not resolver_address =~ /^([[:alnum:]]{1,3}.){3}[[:alnum:]]{1,3}(:[[:digit:]]+)?$/
         log_warning "Ignoring entry with invalid or unsupported resolver address: #{resolver_address}"
       elsif not provider_name =~ /^[[:alnum:]]+[[:alnum:]-.]+[.][[:alpha:]]+$/
         log_warning "Ignoring entry with invalid provider name: #{resolver_address} (#{provider_name})"
@@ -763,7 +970,12 @@ def main
 
         entries << Entry.new(resolver_address, provider_name, provider_key)
       end
+
+      raw_count += 1
     end
+
+    fail "Resolvers list file \"#{resolvers_list}\" does not contain any entry." if raw_count == 0
+    fail "All entries have been filtered out." if entries.empty?
 
     #
     # Drop privilege if wanted.
@@ -893,7 +1105,7 @@ def main
         if @params.check_resolvers
           failed = false
 
-          @params.check_resolvers.each do |fqdn|
+          @params.check_resolvers.each do |fqdn, validate_with_dnssec|
             log_message "Checking if #{entry.resolver_address} (#{local_ip}:#{local_port}) can resolve #{fqdn}."
             log_verbose "Timeout is #{@params.check_resolvers_timeout}."
 
