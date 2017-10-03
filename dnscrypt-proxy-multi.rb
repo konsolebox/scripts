@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# April 30, 2016 (Last Updated 2017/08/31)
+# April 30, 2016 (Last Updated 2017/10/03)
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2017-08-31'
+VERSION = '2017-10-03'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -930,6 +930,8 @@ def main
       break if entry.nil? or @pids.size == @params.max_instances
       Kernel.sleep(@params.instance_delay) if @params.instance_delay > 0.0
     end
+
+    log_message "Done starting instances."
 
     #
     # Wait for all processes to exit.
