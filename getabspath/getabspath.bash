@@ -1,19 +1,30 @@
 function getabspath {
-	local T1 T2=() I=0 IFS=/
+	local t=() i=0 IFS=/
 
 	case $1 in
 	/*)
-		read -ra T1 <<< "${1#/}"
+		__=${1#/}
 		;;
 	*)
-		read -ra T1 <<< "${PWD#/}/$1"
+		__=${PWD#/}/$1
 		;;
 	esac
 
-	for __ in "${T1[@]}"; do
+	case $- in
+	*f*)
+		set -- $__
+		;;
+	*)
+		set -f
+		set -- $__
+		set +f
+		;;
+	esac
+
+	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && (( --I ))
+			(( i )) && unset 't[--i]'
 			continue
 			;;
 		.|'')
@@ -21,15 +32,15 @@ function getabspath {
 			;;
 		esac
 
-		T2[I++]=$__
+		t[i++]=$__
 	done
 
 	case $1 in
 	*/)
-		[[ I -gt 0 ]] && __="/${T2[*]:0:I}/" || __=/
+		(( i )) && __="/${t[*]}/" || __=/
 		;;
 	*)
-		[[ I -gt 0 ]] && __="/${T2[*]:0:I}" || __=/.
+		(( i )) && __="/${t[*]}" || __=/.
 		;;
 	esac
 }

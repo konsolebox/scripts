@@ -1,6 +1,6 @@
 function getcleanpath {
-	local T I=0 IFS=/
-	set -A T
+	local t i=0 IFS=/
+	set -A t
 
 	case $1 in
 	/*)
@@ -14,7 +14,7 @@ function getcleanpath {
 	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && T[I--]=()
+			(( i )) && t[i--]=()
 			continue
 			;;
 		.|'')
@@ -22,8 +22,8 @@ function getcleanpath {
 			;;
 		esac
 
-		T[++I]=$__
+		t[++i]=$__
 	done
 
-	__="/${T[*]}"
+	__="/${t[*]}"
 }

@@ -8,13 +8,16 @@ that path and saves it to the variable __.
 The scripts provided here provide an implementation of that function
 that works for a specific shell like Bash, Ksh and Zsh.
 
-| Script                  | Target Shell |
-|-------------------------|--------------|
-| getcleanpath.bash       | All versions of Bash starting 3.0 |
-| getcleanpath.bash-2.05b | Bash 2.05b or newer |
-| getcleanpath.bash-2.04  | Bash 2.04 or newer  |
-| getcleanpath.ksh        | Ksh93 and MirBSD Ksh |
-| getcleanpath.pdksh      | Public Domain Ksh |
-| getcleanpath.sh+pwd     | Generic implementation that relies on pwd and a subshell function |
-| getcleanpath.sh+pwd+awk | Generic implementation that relies on pwd and awk |
-| getcleanpath.zsh        | Zsh |
+| Script                  | Target Shell                                       |
+|-------------------------|----------------------------------------------------|
+| getcleanpath.bash       | Bash                                               |
+| getcleanpath.ksh        | Ksh93                                              |
+| getcleanpath.pdksh      | Public Domain Ksh and MirBSD Ksh                   |
+| getcleanpath.sh+gwd     | Generic implementation that relies on gwd          |
+| getcleanpath.sh+pwd     | Generic implementation that relies on pwd          |
+| getcleanpath.sh+gwd+awk | Generic implementation that relies on gwd and awk  |
+| getcleanpath.sh+pwd+awk | Generic implementation that relies on pwd and awk  |
+| getcleanpath.zsh        | Zsh                                                |
+| gwd.sh                  | Providse gwd() - a function that gets the current  |
+|                         | working directory using the least expensive        |
+|                         | method.                                            |

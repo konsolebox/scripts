@@ -1,6 +1,6 @@
 function getabspath {
-	local T I=0 IFS=/
-	set -A T
+	local t i=0 IFS=/
+	set -A t
 
 	case $1 in
 	/*)
@@ -14,7 +14,7 @@ function getabspath {
 	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && T[I--]=()
+			(( i )) && t[i--]=()
 			continue
 			;;
 		.|'')
@@ -22,15 +22,15 @@ function getabspath {
 			;;
 		esac
 
-		T[++I]=$__
+		t[++i]=$__
 	done
 
 	case $__ in
 	*/)
-		[[ I -gt 0 ]] && __="/${T[*]}/" || __=/
+		(( i )) && __="/${t[*]}/" || __=/
 		;;
 	*)
-		[[ I -gt 0 ]] && __="/${T[*]}" || __=/.
+		(( i )) && __="/${t[*]}" || __=/.
 		;;
 	esac
 }

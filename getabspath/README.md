@@ -10,13 +10,15 @@ the variable __.
 The scripts provided here provide an implementation of that function
 that works for a specific shell like Bash, Ksh and Zsh.
 
-| Script                | Target Shell |
-|-----------------------|--------------|
-| getabspath.bash       | All versions of Bash starting 3.0 |
-| getabspath.bash-2.05b | Bash 2.05b or newer |
-| getabspath.bash-2.04  | Bash 2.04 or newer  |
-| getabspath.ksh        | Ksh93 and MirBSD Ksh |
-| getabspath.pdksh      | Public Domain Ksh |
-| getabspath.sh+pwd     | Generic implementation that relies on pwd and a subshell function |
-| getabspath.sh+pwd+awk | Generic implementation that relies on pwd and awk |
-| getabspath.zsh        | Zsh |
+| Script                | Target Shell                                        |
+|-----------------------|-----------------------------------------------------|
+| getabspath.bash       | Bash                                                |
+| getabspath.ksh        | Ksh93                                               |
+| getabspath.pdksh      | Public Domain Ksh and MirBSD Ksh                    |
+| getabspath.sh+gwd     | Generic implementation that relies on gwd           |
+| getabspath.sh+pwd     | Generic implementation that relies on pwd           |
+| getabspath.sh+gwd+awk | Generic implementation that relies on gwd and awk   |
+| getabspath.sh+pwd+awk | Generic implementation that relies on pwd and awk   |
+| getabspath.zsh        | Zsh                                                 |
+| gwd.sh                | Providse gwd() - a function that gets the current   |
+|                       | working directory using the least expensive method. |

@@ -1,15 +1,30 @@
-function getcleanpath {
-	typeset T1 T2 I=0 IFS=/
-	[[ $1 == /* ]] && __=${1#/} || __=${PWD#/}/$1
+function getabspath {
+	typeset t i=0 IFS=/
 
-	read -rA T1 << .
-$__
-.
+	case $1 in
+	/*)
+		__=${1#/}
+		;;
+	*)
+		__=${PWD#/}/$1
+		;;
+	esac
 
-	for __ in "${T1[@]}"; do
+	case $- in
+	*f*)
+		set -- $__
+		;;
+	*)
+		set -f
+		set -- $__
+		set +f
+		;;
+	esac
+
+	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && unset 'T2[--I]'
+			(( i )) && unset 't[--i]'
 			continue
 			;;
 		.|'')
@@ -17,8 +32,8 @@ $__
 			;;
 		esac
 
-		T2[I++]=$__
+		t[i++]=$__
 	done
 
-	__="/${T2[*]}"
+	__="/${t[*]}"
 }

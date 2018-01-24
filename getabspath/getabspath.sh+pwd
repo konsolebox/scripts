@@ -1,49 +1,70 @@
 getabspath() {
+	GETABSPATH_OLD_IFS=$IFS IFS=/
+	GETABSPATH_ARG=$1
+	GETABSPATH_FLAGS=$-
+	set -f
+
 	case $1 in
 	/*)
-		__=$1
+		set -- $1
 		;;
 	*)
-		__=`exec pwd`/$1
+		set -- `exec pwd` $1
 		;;
 	esac
 
-	__=`get_abs_path_ "$__"`
-
-	case $1 in
-	*/)
-		[ "$__" = / ] || __=$__/
-		;;
-	*)
-		[ "$__" = / ] && __=/.
-		;;
-	esac
-}
-
-get_abs_path_() {
-	set -f
-	IFS=/ __= L=
-	set -- $1
+	__=
 
 	while [ "$#" -gt 0 ]; do
 		case $1 in
-		..)
-			shift
-			[ -z "$L" ] && continue
-			set -- $__ "$@"
-			__= L=
-			continue
-			;;
-		.|'')
+		..|.|'')
 			shift
 			continue
 			;;
 		esac
 
-		[ -n "$L" ] && __=$__/$L
-		L=$1
+		GETABSPATH_TEMP=$1
 		shift
+
+		while [ "$#" -gt 0 ]; do
+			case $1 in
+			.|'')
+				shift
+				continue
+				;;
+			esac
+
+			break
+		done
+
+		case $1 in
+		..)
+			shift
+			set -- $__ "$@"
+			__=
+			continue
+			;;
+		esac
+
+		__=$__/$GETABSPATH_TEMP
 	done
 
-	echo "$__/$L"
+	case $GETABSPATH_FLAGS in
+	*f*)
+		;;
+	*)
+		set +f
+		;;
+	esac
+
+	IFS=$GETABSPATH_OLD_IFS
+
+	case $GETABSPATH_ARG in
+	*/)
+		__=$__/
+		;;
+	*)
+		[ -z "$__" ] && __=/.
+		;;
+	esac
 }

@@ -1,25 +1,39 @@
-getcleanpath() {
-	typeset A IFS=/ T I=0
-	[[ $1 == /* ]] && A=${1#/} || A=${PWD#/}/$1
+getabspath() {
+	typeset t i=0 IFS=/
 
-	while
-		__=${A%%/*}
+	case $1 in
+	/*)
+		__=${1#/}
+		;;
+	*)
+		__=${PWD#/}/$1
+		;;
+	esac
 
+	case $- in
+	*f*)
+		set -- $__
+		;;
+	*)
+		set -f
+		set -- $__
+		set +f
+		;;
+	esac
+
+	for __; do
 		case $__ in
 		..)
-			[[ I -gt 0 ]] && unset 'T[--I]'
+			(( i )) && unset 't[--i]'
+			continue
 			;;
 		.|'')
-			;;
-		*)
-			T[I++]=$__
+			continue
 			;;
 		esac
 
-		[[ $A == */* ]]
-	do
-		A=${A#*/}
+		t[i++]=$__
 	done
 
-	__="/${T[*]}"
+	__="/${t[*]}"
 }
