@@ -1,7 +1,8 @@
 getabspath() {
-	GETABSPATH_OLD_IFS=$IFS IFS=/
 	GETABSPATH_ARG=$1
-	GETABSPATH_FLAGS=$-
+	GETABSPATH_OLD_FLAGS=$-
+	GETABSPATH_OLD_IFS=$IFS
+	IFS=/
 	set -f
 
 	case $1 in
@@ -49,7 +50,7 @@ getabspath() {
 		__=$__/$GETABSPATH_TEMP
 	done
 
-	case $GETABSPATH_FLAGS in
+	case $GETABSPATH_OLD_FLAGS in
 	*f*)
 		;;
 	*)

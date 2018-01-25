@@ -1,6 +1,7 @@
 getcleanpath() {
-	GETCLEANPATH_OLD_IFS=$IFS IFS=/
-	GETCLEANPATH_FLAGS=$-
+	GETCLEANPATH_OLD_FLAGS=$-
+	GETCLEANPATH_OLD_IFS=$IFS
+	IFS=/
 	set -f
 
 	case $1 in
@@ -48,7 +49,7 @@ getcleanpath() {
 		__=$__/$GETCLEANPATH_TEMP
 	done
 
-	case $GETCLEANPATH_FLAGS in
+	case $GETCLEANPATH_OLD_FLAGS in
 	*f*)
 		;;
 	*)
