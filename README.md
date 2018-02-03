@@ -58,10 +58,6 @@ specified in an integrated list.
 
 Searches for manual pages based on `$MANPATH`.
 
-#### notepad++.sh
-
-I use this wrapper script to easily run wine-emulated Notepad++.
-
 #### rcopy.sh
 
 Copies files along with their dependencies to a virtual root directory.
