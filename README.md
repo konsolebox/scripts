@@ -6,7 +6,7 @@ Repository for various scripts I make.
 
 Searches for binary files based on the value of `$PATH`.
 
-#### dnscrypt-proxy-multi
+#### dnscrypt-proxy-multi.rb
 
 A Ruby script that runs multiple instances of dnscrypt-proxy.
 
