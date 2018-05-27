@@ -99,8 +99,8 @@ TCPDUMP_CAPTURE_FILE_PREFIX='capture-'
 TCPDUMP_CAPTURE_FILE_SUFFIX=''
 TCPDUMP_CHECK_INTERVALS=60  ## Seconds
 
-OLD=14              ## Days
-DD_BLOCK_SIZE=512   ## Bytes
+DAYS_OLD=14        ## Days
+DD_BLOCK_SIZE=512  ## Bytes
 TEMP_DIR='/var/tmp'
 
 # Other runtime variables.  Do not touch.
@@ -239,7 +239,7 @@ function main {
 				log "A new day has come."
 
 				if read -rd '' FILE; then
-					log "Deleting ${OLD}-days old files."
+					log "Deleting ${DAYS_OLD}-days old files."
 
 					while
 						log "Deleting ${FILE}."
@@ -250,7 +250,7 @@ function main {
 					done
 
 					log "Done."
-				fi < <(exec find "${LOG_DIR}" -name "${CAPTURE_FILE_PATTERN}" -daystart -ctime "+${OLD}" -print0)  ## Or -mtime?
+				fi < <(exec find "${LOG_DIR}" -name "${CAPTURE_FILE_PATTERN}" -daystart -ctime "+${DAYS_OLD}" -print0)  ## Or -mtime?
 
 				restart_tcpdump
 			fi
