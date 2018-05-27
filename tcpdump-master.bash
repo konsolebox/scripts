@@ -19,7 +19,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 13, 2015
+# May 27, 2018
 
 # Copyright-related details:
 #
@@ -44,7 +44,7 @@
 # The full text of the MIT License follows:
 #
 # ========================================================================
-# Copyright (c) 2015 konsolebox
+# Copyright (c) 2018 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
