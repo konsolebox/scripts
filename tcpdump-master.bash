@@ -88,7 +88,7 @@ shopt -s extglob
 
 LOG_DIR='/var/log/tcpdump'
 
-MAIN_LOG_FILE='main.log'
+MAIN_LOG_FILE='main.log'                        ## ${LOG_DIR}/ is prepended to this if it's in basename form.
 MAIN_LOG_FILE_MAX_SIZE=$(( 20 * 1024 * 1024 ))  ## Bytes.  File is reduced when this size is reached.
 MAIN_LOG_FILE_ALLOWANCE=$(( 1 * 1024 * 1024 ))  ## Bytes.  This is the extra space given when file is reduced.
 MAIN_LOG_CHECK_INTERVALS=300                    ## Seconds.  Recommended: >= 300
