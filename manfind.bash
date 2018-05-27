@@ -2,15 +2,15 @@
 
 # ----------------------------------------------------------
 
-# manfind.sh
+# manfind
 #
 # Finds manual pages in $MANPATH by keywords.
 #
-# Usage: manfind[.sh] keyword [keyword2 ...]
+# Usage: manfind[.bash] keyword [keyword2 ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# August 28, 2017
+# May 27, 2018
 
 # ----------------------------------------------------------
 

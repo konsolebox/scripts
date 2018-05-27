@@ -2,15 +2,15 @@
 
 # ----------------------------------------------------------
 
-# binfind.sh
+# binfind
 #
 # Finds files in $PATH through keywords.
 #
-# Usage: binfind[.sh] keyword [keyword2 ...]
+# Usage: binfind[.bash] keyword [keyword2 ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# August 28, 2017
+# May 27, 2018
 
 # ----------------------------------------------------------
 

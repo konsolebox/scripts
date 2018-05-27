@@ -2,7 +2,7 @@
 
 # ----------------------------------------------------------------------
 
-# libfind.sh
+# libfind
 #
 # Finds library files with the use of expressions.
 #
@@ -10,15 +10,15 @@
 # /etc/ld.so.conf, but it can be configured to use other directories
 # instead.
 #
-# Usage: libfind[.sh] [options] [-e] expression [[--] expression ...]
+# Usage: libfind[.bash] [options] [-e] expression [[--] expression ...]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 28, 2017
+# May 27, 2018
 
 # ----------------------------------------------------------------------
 
-VERSION='2017-08-28'
+VERSION='2018-05-27'
 
 [[ $BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
