@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 27, 2018
+# May 28, 2018
 
 # ----------------------------------------------------------
 
@@ -127,10 +127,10 @@ function list_children_ {
 
 # ----------------------------------------------------------
 
-VERSION=2018-05-27
+VERSION=2018-05-28
 
 function show_help_info {
-	echo "Sends signals to a process tree with style.
+	echo "Sends signals to process trees with style.
 
 Usage: $0 [options] [--] process_name_or_id ...
 
