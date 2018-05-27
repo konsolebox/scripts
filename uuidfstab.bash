@@ -85,11 +85,8 @@ function main {
 	fi
 
 	shopt -s extglob
-
 	[[ -f ${fstab_file} && -r ${fstab_file} ]] || fail "Fstab file ${fstab_file} does not exist or is not readable."
-
 	log "Processing ${fstab_file} and writing output to ${output_file}."
-
 	local line device printed id
 
 	while read -r line; do
@@ -116,7 +113,6 @@ function main {
 	fi
 
 	log "Done."
-
 	return 0
 }
 
