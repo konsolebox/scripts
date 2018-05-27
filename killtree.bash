@@ -228,7 +228,7 @@ function main {
 		}
 	fi
 
-	local target_pids=() names pids __
+	local target_pids=() pids __
 
 	for __ in "${targets[@]}"; do
 		if [[ $__ == +([[:digit:]]) ]]; then
