@@ -8,8 +8,8 @@
 # root directory.  The resulting file's path is reproduced
 # based on its source.
 #
-# Usage: [bash ./]rcopy[.bash] [options] -t directory source ...
-#        [bash ./]rcopy[.bash] [options] source ... directory
+# Usage: rcopy[.bash] [options] -t directory source ...
+#        rcopy[.bash] [options] source ... directory
 #
 # Disclaimer: This tool comes with no warranty.
 #
