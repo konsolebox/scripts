@@ -2,9 +2,13 @@
 
 Repository for various scripts I make.
 
-#### binfind.sh
+#### binfind.bash
 
 Searches for binary files based on the value of `$PATH`.
+
+#### build-and-copy.bash
+
+A script I use to automate building of initrd image.
 
 #### dnscrypt-proxy-multi.rb
 
@@ -31,44 +35,40 @@ on an external command if possible.
 
 #### getcleanpath/*
 
-Scripts that implement getcleanpath() for various shells. 
+Scripts that implement getcleanpath() for various shells.
 getcleanpath() is similar to getabspath() but it doesn't care about the
 format of its input to base on for its output.  It would always produce
 an output similar to realpath where the path would never end in / unless
 it's the root directory itself.
 
-#### init/build-and-copy.sh
-
-A script I ended up making to automate building of my custom initrd.
-
-#### killtree.sh
+#### killtree.bash
 
 Sends signals to process trees with style.
 
 The script also contains reusable functions for working with process
 trees.
 
-#### libfind.sh
+#### libfind.bash
 
 Finds library files by keywords or expressions in directories specified
 by /etc/ld.so.conf and its subfiles, or in common library directories
 specified in an integrated list.
 
-#### manfind.sh
+#### manfind.bash
 
 Searches for manual pages based on `$MANPATH`.
 
-#### rcopy.sh
+#### rcopy.bash
 
 Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based on its source.
 
-#### tcpdump-master.sh
+#### tcpdump-master.bash
 
 The script is a tcpdump service starter and manager.  It can also
 automatically delete files older than C days, and reduce the size of
 the main log file if it's already larger than N bytes.
 
-#### uuidfstab.sh
+#### uuidfstab.bash
 
 Converts device paths in a fstab file to UUID forms.
