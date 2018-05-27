@@ -124,10 +124,14 @@ function copy_dir_structure {
 		current_source+=/$__
 
 		if [[ -L ${current_source} ]]; then
-			[[ ! -d ${current_source} ]] && fail "Parent path node of a source tree is expected to be a directory but isn't: ${current_source}"
+			[[ ! -d ${current_source} ]] && \
+				fail "Parent path node of a source tree is expected to be a directory but isn't: ${current_source}"
 
-			link_target=$(readlink "${current_source}") && [[ -n ${link_target} ]] || fail "Unable to get link's target: ${current_source}"
-			[[ ${link_target} == /* ]] && fail "Symbolic-link path nodes that resolve to absolute paths are not yet supported: \"${current_source}\" -> \"${link_target}\""
+			link_target=$(readlink "${current_source}") && [[ -n ${link_target} ]] || \
+				fail "Unable to get link's target: ${current_source}"
+
+			[[ ${link_target} == /* ]] && \
+				fail "Symbolic-link path nodes that resolve to absolute paths are not yet supported: \"${current_source}\" -> \"${link_target}\""
 
 			if [[ -e ${dest_dir}${current_source} ]]; then
 				if [[ -L ${dest_dir}${current_source} ]]; then
