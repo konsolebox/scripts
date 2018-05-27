@@ -6,7 +6,7 @@
 #
 # Sends signals to process trees with style.
 #
-# Usage: [bash ./]killtree[.bash] [options] [--] process_name_or_pid ...
+# Usage: killtree[.bash] [options] [--] process_name_or_pid ...
 #
 # This script also contains reusable functions.
 #
