@@ -34,12 +34,12 @@ function kill_tree {
 # This version kills processes as it goes.
 #
 function kill_tree_2 {
-	local LIST=() s=${2-SIGTERM} a
+	local LIST=() s=${2-SIGTERM} __
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 	kill -s "$s" "$1"
 
-	for a in "${LIST[@]}"; do
-		kill_tree_2 "$a" "$s"
+	for __ in "${LIST[@]}"; do
+		kill_tree_2 "$__" "$s"
 	done
 }
 
@@ -48,11 +48,11 @@ function kill_tree_2 {
 # This version kills child processes first before the parent.
 #
 function kill_tree_3 {
-	local LIST=() s=${2-SIGTERM} a
+	local LIST=() s=${2-SIGTERM} __
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for a in "${LIST[@]}"; do
-		kill_tree_3 "$a" "$s"
+	for __ in "${LIST[@]}"; do
+		kill_tree_3 "$__" "$s"
 	done
 
 	kill -s "$s" "$1"
@@ -74,11 +74,11 @@ function kill_children {
 # This version kills processes as it goes.
 #
 function kill_children_2 {
-	local LIST=() s=${2-SIGTERM} a
+	local LIST=() s=${2-SIGTERM} __
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for a in "${LIST[@]}"; do
-		kill_tree_2 "$a" "$s"
+	for __ in "${LIST[@]}"; do
+		kill_tree_2 "$__" "$s"
 	done
 }
 
@@ -87,11 +87,11 @@ function kill_children_2 {
 # This version kills child processes first before the parent.
 #
 function kill_children_3 {
-	local LIST=() s=${2-SIGTERM} a
+	local LIST=() s=${2-SIGTERM} __
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for a in "${LIST[@]}"; do
-		kill_tree_3 "$a" "$s"
+	for __ in "${LIST[@]}"; do
+		kill_tree_3 "$__" "$s"
 	done
 }
 
@@ -116,12 +116,12 @@ function list_children {
 # list_children_ (pid)
 #
 function list_children_ {
-	local add=() a
+	local add=() __
 	IFS=$'\n' read -ra add -d '' < <(exec pgrep -P "$1")
 	LIST+=("${add[@]}")
 
-	for a in "${add[@]}"; do
-		list_children_ "$a"
+	for __ in "${add[@]}"; do
+		list_children_ "$__"
 	done
 }
 
