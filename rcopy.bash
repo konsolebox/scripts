@@ -8,14 +8,14 @@
 # root directory.  The resulting file's path is reproduced
 # based on its source.
 #
-# Usage: [bash] rcopy[.sh] [options] -t directory source ...
-#        [bash] rcopy[.sh] [options] source ... directory
+# Usage: [bash ./]rcopy[.bash] [options] -t directory source ...
+#        [bash ./]rcopy[.bash] [options] source ... directory
 #
 # Disclaimer: This tool comes with no warranty.
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 24, 2017
+# May 27, 2018
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2017-05-24
+VERSION=2018-05-27
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
