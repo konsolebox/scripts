@@ -132,7 +132,7 @@ VERSION=2018-05-27
 function show_help_info {
 	echo "Sends signals to a process tree with style.
 
-Usage: $0 [OPTIONS] [--] PROCESS_NAME_OR_ID ...
+Usage: $0 [options] [--] process_name_or_id ...
 
 Options:
   -c, --children-only  Only send signals to child processes, not the
