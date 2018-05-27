@@ -47,6 +47,8 @@ function fail {
 }
 
 function main {
+	local __
+
 	for __; do
 		case $__ in
 		--)
@@ -67,48 +69,50 @@ function main {
 		show_usage_and_exit
 	fi
 
-	local FSTAB_FILE=$1 SPECIFIED_OUTPUT=$2 LINE DEVICE TEMP_FILE ID OUTPUT_FILE
+	local fstab_file=$1 specified_output=$2 temp_file output_file
 
-	if [[ -z ${SPECIFIED_OUTPUT} ]]; then
-		TEMP_FILE=$(mktemp)
-		[[ -z ${TEMP_FILE} || ! -f ${TEMP_FILE} ]] && fail "Unable to create temporary file."
-		[[ -w ${TEMP_FILE} ]] || fail "Temporary file can't be written into."
-		OUTPUT_FILE=${TEMP_FILE}
-	elif [[ ${SPECIFIED_OUTPUT} == - ]]; then
-		SPECIFIED_OUTPUT=/dev/stdout
-		OUTPUT_FILE=/dev/stdout
+	if [[ -z ${specified_output} ]]; then
+		temp_file=$(mktemp)
+		[[ -z ${temp_file} || ! -f ${temp_file} ]] && fail "Unable to create temporary file."
+		[[ -w ${temp_file} ]] || fail "Temporary file can't be written into."
+		output_file=${temp_file}
+	elif [[ ${specified_output} == - ]]; then
+		specified_output=/dev/stdout
+		output_file=/dev/stdout
 	else
-		: >> "${SPECIFIED_OUTPUT}" || fail "Unable to create file or write to file: ${SPECIFIED_OUTPUT}"
-		OUTPUT_FILE=${SPECIFIED_OUTPUT}
+		: >> "${specified_output}" || fail "Unable to create file or write to file: ${specified_output}"
+		output_file=${specified_output}
 	fi
 
 	shopt -s extglob
 
-	[[ -f ${FSTAB_FILE} && -r ${FSTAB_FILE} ]] || fail "Fstab file ${FSTAB_FILE} does not exist or is not readable."
+	[[ -f ${fstab_file} && -r ${fstab_file} ]] || fail "Fstab file ${fstab_file} does not exist or is not readable."
 
-	log "Processing ${FSTAB_FILE} and writing output to ${OUTPUT_FILE}."
+	log "Processing ${fstab_file} and writing output to ${output_file}."
 
-	while read -r LINE; do
-		DEVICE=${LINE%%+([[:space:]])*}
-		PRINTED=false
+	local line device printed id
 
-		if [[ ${DEVICE} == /dev/* ]]; then
-			ID=$(blkid "${DEVICE}" -s UUID -o value)
+	while read -r line; do
+		device=${line%%+([[:space:]])*}
+		printed=false
 
-			if [[ -n ${ID} ]]; then
-				echo "# ${DEVICE} = ${ID}" >&3
-				echo "${LINE/${DEVICE}/UUID=${ID}}" >&3
-				PRINTED=true
+		if [[ ${device} == /dev/* ]]; then
+			id=$(blkid "${device}" -s UUID -o value)
+
+			if [[ -n ${id} ]]; then
+				echo "# ${device} = ${id}" >&3
+				echo "${line/${device}/UUID=${id}}" >&3
+				printed=true
 			fi
 		fi
 
-		[[ ${PRINTED} = false ]] && echo "${LINE}" >&3
-	done < "${FSTAB_FILE}" 3> "${OUTPUT_FILE}" || fail "Failed."
+		[[ ${printed} = false ]] && echo "${line}" >&3
+	done < "${fstab_file}" 3> "${output_file}" || fail "Failed."
 
-	if [[ -z ${SPECIFIED_OUTPUT} ]]; then
-		log "Saving output from ${TEMP_FILE} to ${FSTAB_FILE}."
-		cat "${TEMP_FILE}" > "${FSTAB_FILE}" || fail "Unable to save modifications to fstab file."
-		rm "${TEMP_FILE}" || log "Warning: Failed to delete temporary file: ${TEMP_FILE}" >&2
+	if [[ -z ${specified_output} ]]; then
+		log "Saving output from ${temp_file} to ${fstab_file}."
+		cat "${temp_file}" > "${fstab_file}" || fail "Unable to save modifications to fstab file."
+		rm "${temp_file}" || log "Warning: Failed to delete temporary file: ${temp_file}" >&2
 	fi
 
 	log "Done."
