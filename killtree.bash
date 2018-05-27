@@ -143,7 +143,7 @@ Options:
   -r, --reverse        Process child processes first before parents.
   -s, --signal signal  Specify the signal to be sent to every process.
                        The default is SIGTERM.
-  -v, --verbose        Be verbose.  
+  -v, --verbose        Be verbose.
   -V, --version        Show version.
 
 The default signal is SIGTERM.
@@ -242,7 +242,7 @@ function main {
 	done
 
 	log_verbose "Parent targets: ${target_pids[@]}"
-	
+
 	local func=kill_${tree_or_children}${function_suffix}
 
 	for __ in "${target_pids[@]}"; do
