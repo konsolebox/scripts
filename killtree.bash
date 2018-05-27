@@ -34,12 +34,12 @@ function kill_tree {
 # This version kills processes as it goes.
 #
 function kill_tree_2 {
-	local LIST=() S=${2-SIGTERM} A
+	local LIST=() s=${2-SIGTERM} a
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
-	kill -s "$S" "$1"
+	kill -s "$s" "$1"
 
-	for A in "${LIST[@]}"; do
-		kill_tree_2 "$A" "$S"
+	for a in "${LIST[@]}"; do
+		kill_tree_2 "$a" "$s"
 	done
 }
 
@@ -48,14 +48,14 @@ function kill_tree_2 {
 # This version kills child processes first before the parent.
 #
 function kill_tree_3 {
-	local LIST=() S=${2-SIGTERM} A
+	local LIST=() s=${2-SIGTERM} a
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for A in "${LIST[@]}"; do
-		kill_tree_3 "$A" "$S"
+	for a in "${LIST[@]}"; do
+		kill_tree_3 "$a" "$s"
 	done
 
-	kill -s "$S" "$1"
+	kill -s "$s" "$1"
 }
 
 # kill_children (pid, [signal = SIGTERM])
@@ -74,11 +74,11 @@ function kill_children {
 # This version kills processes as it goes.
 #
 function kill_children_2 {
-	local LIST=() S=${2-SIGTERM} A
+	local LIST=() s=${2-SIGTERM} a
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for A in "${LIST[@]}"; do
-		kill_tree_2 "$A" "$S"
+	for a in "${LIST[@]}"; do
+		kill_tree_2 "$a" "$s"
 	done
 }
 
@@ -87,11 +87,11 @@ function kill_children_2 {
 # This version kills child processes first before the parent.
 #
 function kill_children_3 {
-	local LIST=() S=${2-SIGTERM} A
+	local LIST=() s=${2-SIGTERM} a
 	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
 
-	for A in "${LIST[@]}"; do
-		kill_tree_3 "$A" "$S"
+	for a in "${LIST[@]}"; do
+		kill_tree_3 "$a" "$s"
 	done
 }
 
@@ -116,12 +116,12 @@ function list_children {
 # list_children_ (pid)
 #
 function list_children_ {
-	local ADD=() A
-	IFS=$'\n' read -ra ADD -d '' < <(exec pgrep -P "$1")
-	LIST+=("${ADD[@]}")
+	local add=() a
+	IFS=$'\n' read -ra add -d '' < <(exec pgrep -P "$1")
+	LIST+=("${add[@]}")
 
-	for A in "${ADD[@]}"; do
-		list_children_ "$A"
+	for a in "${add[@]}"; do
+		list_children_ "$a"
 	done
 }
 
@@ -141,7 +141,7 @@ Options:
   -o, --one-at-a-time  Send signal to a process every after it gets its
                        child processes enumerated.
   -r, --reverse        Process child processes first before parents.
-  -s, --signal SIGNAL  Specify the signal to be sent to every process.
+  -s, --signal signal  Specify the signal to be sent to every process.
                        The default is SIGTERM.
   -v, --verbose        Be verbose.  
   -V, --version        Show version.
@@ -168,52 +168,52 @@ function fail {
 }
 
 function main {
-	local FUNCTION_SUFFIX='' SIGNAL=SIGTERM TARGETS=() TREE_OR_CHILDREN=tree VERBOSE=false
+	local function_suffix='' signal=SIGTERM targets=() tree_or_children=tree verbose=false
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-c|--children-only)
-			TREE_OR_CHILDREN=children
+			tree_or_children=children
 			;;
 		-h|--help)
 			show_help_info
 			return 1
 			;;
 		-o|--one-at-a-time)
-			FUNCTION_SUFFIX='_1'
+			function_suffix='_1'
 			;;
 		-r|--reverse)
-			FUNCTION_SUFFIX='_2'
+			function_suffix='_2'
 			;;
 		-s)
-			SIGNAL=$2
+			signal=$2
 			shift
 			;;
 		-v|--verbose)
-			VERBOSE=true
+			verbose=true
 			;;
 		-V|--version)
 			echo "${VERSION}"
 			return 1
 			;;
 		--)
-			TARGETS+=("${@:2}")
+			targets+=("${@:2}")
 			break
 			;;
 		-*)
 			fail "Invalid option: $1"
 			;;
 		*)
-			TARGETS+=("$1")
+			targets+=("$1")
 			;;
 		esac
 
 		shift
 	done
 
-	[[ ${#TARGETS[@]} -eq 0 ]] && fail "No target specified."
+	[[ ${#targets[@]} -eq 0 ]] && fail "No target specified."
 
-	if [[ ${VERBOSE} == true ]]; then
+	if [[ ${verbose} == true ]]; then
 		function kill {
 			echo "Process: ${@:3}"
 			builtin kill "$@"
@@ -228,26 +228,26 @@ function main {
 		}
 	fi
 
-	local TARGET_PIDS=() NAMES PIDS __
+	local target_pids=() names pids __
 
-	for __ in "${TARGETS[@]}"; do
+	for __ in "${targets[@]}"; do
 		if [[ $__ == +([[:digit:]]) ]]; then
-			TARGET_PIDS+=("$__")
+			target_pids+=("$__")
 		else
-			IFS=$'\n' read -ra PIDS -d '' < <(exec pgrep -x -- "$__")
-			[[ ${#PIDS[@]} -eq 0 ]] && fail "No process found from name: $__"
-			log_verbose "Processes matching $__: ${PIDS[@]}"
-			TARGET_PIDS+=("${PIDS[@]}")
+			IFS=$'\n' read -ra pids -d '' < <(exec pgrep -x -- "$__")
+			[[ ${#pids[@]} -eq 0 ]] && fail "No process found from name: $__"
+			log_verbose "Processes matching $__: ${pids[@]}"
+			target_pids+=("${pids[@]}")
 		fi
 	done
 
-	log_verbose "Parent targets: ${TARGET_PIDS[@]}"
+	log_verbose "Parent targets: ${target_pids[@]}"
 	
-	local FUNCTION=kill_${TREE_OR_CHILDREN}${FUNCTION_SUFFIX}
+	local func=kill_${tree_or_children}${function_suffix}
 
-	for __ in "${TARGET_PIDS[@]}"; do
-		log_verbose "Call: ${FUNCTION} $__"
-		"${FUNCTION}" "$__" "${SIGNAL}"
+	for __ in "${target_pids[@]}"; do
+		log_verbose "Call: ${func} $__"
+		"${func}" "$__" "${signal}"
 	done
 
 	return 0
