@@ -6,18 +6,18 @@
 #
 # Converts device paths in a fstab file to UUID forms.
 #
-# Usage: uuidfstab[.sh] [--] fstab_file [output]
-#        uuidfstab[.sh] <-h | --help | -V | --version>
+# Usage: uuidfstab[.bash] [--] fstab_file [output]
+#        uuidfstab[.bash] <-h | --help | -V | --version>
 #
 # Disclaimer: This tool comes with no warranty.
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 12, 2015
+# May 27, 2018
 
 # ----------------------------------------------------------------------
 
-VERSION=2015-06-12
+VERSION=2018-05-27
 
 function log {
 	printf '%s\n' "$@" >&2
