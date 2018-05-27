@@ -6,7 +6,7 @@
 #
 # Sends signals to process trees with style.
 #
-# Usage: killtree[.sh] [options] [--] process_name_or_pid ...
+# Usage: [bash ./]killtree[.bash] [options] [--] process_name_or_pid ...
 #
 # This script also contains reusable functions.
 #
@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Dec. 15, 2015
+# May 27, 2018
 
 # ----------------------------------------------------------
 
@@ -127,7 +127,7 @@ function list_children_ {
 
 # ----------------------------------------------------------
 
-VERSION=2015-06-14
+VERSION=2018-05-27
 
 function show_help_info {
 	echo "Sends signals to a process tree with style.
