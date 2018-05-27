@@ -124,35 +124,35 @@ function start_tcpdump {
 	log "Starting tcpdump."
 
 	CURRENT_DATE=$(date +%F)
-	local BASENAME=${TCPDUMP_CAPTURE_FILE_PREFIX}${CURRENT_DATE}${TCPDUMP_CAPTURE_FILE_SUFFIX}
-	local EXISTING_FILES=()
+	local basename=${TCPDUMP_CAPTURE_FILE_PREFIX}${CURRENT_DATE}${TCPDUMP_CAPTURE_FILE_SUFFIX}
+	local existing_files=()
 
 	{
 		if [[ BASH_VERSINFO -ge 4 ]]; then
-			readarray -t EXISTING_FILES
+			readarray -t existing_files
 		else
-			local I=0
+			local i=0
 
 			while read -r LINE; do
-				EXISTING_FILES[I++]=${LINE}
+				existing_files[i++]=${LINE}
 			done
 		fi
-	} < <(compgen -G "${LOG_DIR}/${BASENAME}.+([[:digit:]]).log*([[:digit:]])")
+	} < <(compgen -G "${LOG_DIR}/${basename}.+([[:digit:]]).log*([[:digit:]])")
 
-	local NEXT_SESSION=0
+	local next_session=0
 
-	if [[ ${#EXISTING_FILES[@]} -gt 0 ]]; then
-		local SESSION_NUMBER
+	if [[ ${#existing_files[@]} -gt 0 ]]; then
+		local session_number
 
-		for FILE in "${EXISTING_FILES[@]}"; do
-			SESSION_NUMBER=${FILE%.log*}
-			SESSION_NUMBER=${SESSION_NUMBER##*.}
-			[[ ${SESSION_NUMBER} == +([[:digit:]]) && SESSION_NUMBER -ge NEXT_SESSION ]] && NEXT_SESSION=$(( SESSION_NUMBER + 1 ))
+		for file in "${existing_files[@]}"; do
+			session_number=${file%.log*}
+			session_number=${session_number##*.}
+			[[ ${session_number} == +([[:digit:]]) && session_number -ge next_session ]] && next_session=$(( session_number + 1 ))
 		done
 	fi
 
-	local OUTPUT_FILE=${LOG_DIR}/${BASENAME}.${NEXT_SESSION}.log
-	"${TCPDUMP}" "${TCPDUMP_ARGS[@]}" -w "${OUTPUT_FILE}" &
+	local output_file=${LOG_DIR}/${basename}.${next_session}.log
+	"${TCPDUMP}" "${TCPDUMP_ARGS[@]}" -w "${output_file}" &
 
 	if [[ $? -ne 0 ]]; then
 		TCPDUMP_PID=0
@@ -192,15 +192,15 @@ function restart_tcpdump {
 }
 
 function signal_caught_callback {
-	local SIGNAL=$1
-	log "Caught signal ${SIGNAL}."
+	local signal=$1
+	log "Caught signal ${signal}."
 	QUIT=true
 }
 
 function main {
-	local CAPTURE_FILE_PATTERN FILE NEW_DATE SIZE TEMP_FILE I
+	local capture_file_pattern file new_date size temp_file i s
 
-	CAPTURE_FILE_PATTERN="${TCPDUMP_CAPTURE_FILE_PREFIX}[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]${TCPDUMP_CAPTURE_FILE_SUFFIX}.log*"
+	capture_file_pattern="${TCPDUMP_CAPTURE_FILE_PREFIX}[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]${TCPDUMP_CAPTURE_FILE_SUFFIX}.log*"
 	[[ ${MAIN_LOG_FILE} != */* ]] && MAIN_LOG_FILE=${LOG_DIR}/${MAIN_LOG_FILE}
 
 	log "----------------------------------------"
@@ -217,57 +217,57 @@ function main {
 		return 1
 	}
 
-	for S in SIGQUIT SIGINT SIGKILL SIGTERM; do
+	for s in SIGQUIT SIGINT SIGKILL SIGTERM; do
 		eval "
-			function catch_${S} { signal_caught_callback ${S}; }
-			trap catch_${S} ${S}
+			function catch_${s} { signal_caught_callback ${s}; }
+			trap catch_${s} ${s}
 		"
 	done
 
 	mkdir -p "${LOG_DIR}"
 	start_tcpdump_loop
 
-	for (( I = 1;; I = (I + 1) % 10000 )); do
+	for (( i = 1;; i = (i + 1) % 10000 )); do
 		read -t 1
 
 		[[ ${QUIT} == true ]] && break
 
-		if (( (I % TCPDUMP_CHECK_INTERVALS) == 0 )); then
-			NEW_DATE=$(date +%F)
+		if (( (i % TCPDUMP_CHECK_INTERVALS) == 0 )); then
+			new_date=$(date +%F)
 
-			if [[ ${NEW_DATE} != "${CURRENT_DATE}" ]]; then
+			if [[ ${new_date} != "${CURRENT_DATE}" ]]; then
 				log "A new day has come."
 
-				if read -rd '' FILE; then
+				if read -rd '' file; then
 					log "Deleting ${DAYS_OLD}-days old files."
 
 					while
-						log "Deleting ${FILE}."
-						rm -f -- "${FILE}"
-						read -r FILE
+						log "Deleting ${file}."
+						rm -f -- "${file}"
+						read -r file
 					do
 						continue
 					done
 
 					log "Done."
-				fi < <(exec find "${LOG_DIR}" -name "${CAPTURE_FILE_PATTERN}" -daystart -ctime "+${DAYS_OLD}" -print0)  ## Or -mtime?
+				fi < <(exec find "${LOG_DIR}" -name "${capture_file_pattern}" -daystart -ctime "+${DAYS_OLD}" -print0)  ## Or -mtime?
 
 				restart_tcpdump
 			fi
 		fi
 
-		if (( (I % MAIN_LOG_CHECK_INTERVALS) == 0 )); then
-			SIZE=$(stat --printf=%s "${MAIN_LOG_FILE}")
+		if (( (i % MAIN_LOG_CHECK_INTERVALS) == 0 )); then
+			size=$(stat --printf=%s "${MAIN_LOG_FILE}")
 
-			if [[ ${SIZE} == +([[:digit:]]) && SIZE -gt MAIN_LOG_FILE_MAX_SIZE ]]; then
+			if [[ ${size} == +([[:digit:]]) && size -gt MAIN_LOG_FILE_MAX_SIZE ]]; then
 				log "Reducing log data in ${MAIN_LOG_FILE}."
-				TEMP_FILE=${TEMP_DIR}/tcpdump-${RANDOM}.tmp
-				SKIP=$(( (SIZE - (MAIN_LOG_FILE_MAX_SIZE - MAIN_LOG_FILE_ALLOWANCE)) / DD_BLOCK_SIZE ))
+				temp_file=${TEMP_DIR}/tcpdump-${RANDOM}.tmp
+				local skip=$(( (size - (MAIN_LOG_FILE_MAX_SIZE - MAIN_LOG_FILE_ALLOWANCE)) / DD_BLOCK_SIZE ))
 
 				if
-					dd "bs=${DD_BLOCK_SIZE}" "skip=${SKIP}" "if=${MAIN_LOG_FILE}" "of=${TEMP_FILE}" \
-					&& cat "${TEMP_FILE}" > "${MAIN_LOG_FILE}" \
-					&& rm -f "${TEMP_FILE}"
+					dd "bs=${DD_BLOCK_SIZE}" "skip=${skip}" "if=${MAIN_LOG_FILE}" "of=${temp_file}" \
+					&& cat "${temp_file}" > "${MAIN_LOG_FILE}" \
+					&& rm -f "${temp_file}"
 				then
 					log "Done."
 				else
