@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 27, 2018
+# May 28, 2018
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2018-05-27
+VERSION=2018-05-28
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -75,19 +75,32 @@ Disclaimer: This tool comes with no warranty."
 }
 
 function get_clean_path {
-	local t1 t2=() i=0 IFS=/
+	local t=() i=0 IFS=/
 
-	if [[ $1 == /* ]]; then
-		read -ra t1 <<< "$1"
-	else
-		read -ra t1 <<< "${PWD}/$1"
-	fi
+	case $1 in
+	/*)
+		__=${1#/}
+		;;
+	*)
+		__=${PWD#/}/$1
+		;;
+	esac
 
-	for __ in "${t1[@]}"; do
+	case $- in
+	*f*)
+		set -- $__
+		;;
+	*)
+		set -f
+		set -- $__
+		set +f
+		;;
+	esac
+
+	for __; do
 		case $__ in
 		..)
-			[[ i -gt 0 ]] || fail "Path tries to get the parent directory of '/': $1"
-			unset 't2[--i]'
+			(( i )) && unset 't[--i]'
 			continue
 			;;
 		.|'')
@@ -95,10 +108,10 @@ function get_clean_path {
 			;;
 		esac
 
-		t2[i++]=$__
+		t[i++]=$__
 	done
 
-	__="/${t2[*]}"
+	__="/${t[*]}"
 }
 
 function cp {
