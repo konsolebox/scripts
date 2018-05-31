@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 28, 2018
+# May 31, 2018
 
 # ----------------------------------------------------------
 
@@ -34,11 +34,11 @@ function kill_tree {
 # This version kills processes as it goes.
 #
 function kill_tree_2 {
-	local LIST=() s=${2-SIGTERM} __
-	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
+	local list=() s=${2-SIGTERM} __
+	IFS=$'\n' read -ra list -d '' < <(exec pgrep -P "$1")
 	kill -s "$s" "$1"
 
-	for __ in "${LIST[@]}"; do
+	for __ in "${list[@]}"; do
 		kill_tree_2 "$__" "$s"
 	done
 }
@@ -48,10 +48,10 @@ function kill_tree_2 {
 # This version kills child processes first before the parent.
 #
 function kill_tree_3 {
-	local LIST=() s=${2-SIGTERM} __
-	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
+	local list=() s=${2-SIGTERM} __
+	IFS=$'\n' read -ra list -d '' < <(exec pgrep -P "$1")
 
-	for __ in "${LIST[@]}"; do
+	for __ in "${list[@]}"; do
 		kill_tree_3 "$__" "$s"
 	done
 
@@ -74,10 +74,10 @@ function kill_children {
 # This version kills processes as it goes.
 #
 function kill_children_2 {
-	local LIST=() s=${2-SIGTERM} __
-	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
+	local list=() s=${2-SIGTERM} __
+	IFS=$'\n' read -ra list -d '' < <(exec pgrep -P "$1")
 
-	for __ in "${LIST[@]}"; do
+	for __ in "${list[@]}"; do
 		kill_tree_2 "$__" "$s"
 	done
 }
@@ -87,10 +87,10 @@ function kill_children_2 {
 # This version kills child processes first before the parent.
 #
 function kill_children_3 {
-	local LIST=() s=${2-SIGTERM} __
-	IFS=$'\n' read -ra LIST -d '' < <(exec pgrep -P "$1")
+	local list=() s=${2-SIGTERM} __
+	IFS=$'\n' read -ra list -d '' < <(exec pgrep -P "$1")
 
-	for __ in "${LIST[@]}"; do
+	for __ in "${list[@]}"; do
 		kill_tree_3 "$__" "$s"
 	done
 }
@@ -127,7 +127,7 @@ function list_children_ {
 
 # ----------------------------------------------------------
 
-VERSION=2018-05-28
+VERSION=2018-05-31
 
 function show_help_info {
 	echo "Sends signals to process trees with style.
