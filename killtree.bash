@@ -215,7 +215,7 @@ function main {
 
 	if [[ ${verbose} == true ]]; then
 		function kill {
-			echo "Process: ${@:3}"
+			echo "Sending singal $2 to:" "${@:3}"
 			builtin kill "$@"
 		}
 
