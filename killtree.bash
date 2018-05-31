@@ -168,7 +168,7 @@ function fail {
 }
 
 function main {
-	local function_suffix='' signal=SIGTERM targets=() tree_or_children=tree verbose=false
+	local function_suffix= signal=SIGTERM targets=() tree_or_children=tree verbose=false
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
