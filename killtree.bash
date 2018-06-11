@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 31, 2018
+# June 12, 2018
 
 # ----------------------------------------------------------
 
@@ -127,7 +127,7 @@ function list_children_ {
 
 # ----------------------------------------------------------
 
-VERSION=2018-05-31
+VERSION=2018-06-12
 
 function show_help_info {
 	echo "Sends signals to process trees with style.
@@ -180,10 +180,10 @@ function main {
 			return 1
 			;;
 		-o|--one-at-a-time)
-			function_suffix='_1'
+			function_suffix='_2'
 			;;
 		-r|--reverse)
-			function_suffix='_2'
+			function_suffix='_3'
 			;;
 		-s)
 			signal=$2
