@@ -135,6 +135,7 @@ function show_help_info {
 Usage: $0 [options] [--] process_name_or_id ...
 
 Options:
+  -a, --all            Send signal to all processes.  (Default)
   -c, --children-only  Only send signals to child processes, not the
                        specified parents.
   -h, --help           Show this help message.
@@ -143,17 +144,18 @@ Options:
   -r, --reverse        Process child processes first before parents.
   -s, --signal signal  Specify the signal to be sent to every process.
                        The default is SIGTERM.
+  -S, --simultaneous   Simultaneously send signals to all processes after they
+                       get enumerated.  (Default)
   -v, --verbose        Be verbose.
   -V, --version        Show version.
 
-The default signal is SIGTERM.
+The default action is to send signals to all processes simultaneously, and the
+default signal is SIGTERM.
 
-The options --one-at-a-time and --reverse are allowed to be used at the
-same time but only the last specified option gets to become effective.
-
-If none of those two options are specified, the default action would be
-to send signals to processes simultaneously after all of them gets
-enumerated.
+The options '--one-at-a-time', '--reverse', and '--simultaneous' can be used
+together as arguments, but only the last specified option becomes effective.
+The behavior also applies to '--all' and '--children-only'.  It allows
+cancelling out default arguments.
 
 Exit Status:
 The script returns 0 only when one or more processes are processed.
@@ -172,6 +174,9 @@ function main {
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
+		-a|--all)
+			tree_or_children=tree
+			;;
 		-c|--children-only)
 			tree_or_children=children
 			;;
@@ -188,6 +193,9 @@ function main {
 		-s)
 			signal=$2
 			shift
+			;;
+		-S|--simultaneous)
+			function_suffix=
 			;;
 		-v|--verbose)
 			verbose=true
