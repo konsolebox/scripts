@@ -127,6 +127,7 @@ function list_children_ {
 
 # ----------------------------------------------------------
 
+SELF=${BASHPID-$$}
 VERSION=2018-06-12
 
 function show_help_info {
@@ -167,6 +168,14 @@ $0 --children-only --reverse --signal SIGHUP 1234 zombie"
 function fail {
 	echo "$@"
 	exit 1
+}
+
+function exclude_self {
+	__A0=()
+
+	for __; do
+		[[ $__ != "${SELF}" ]] && __A0+=("$__")
+	done
 }
 
 function main {
@@ -223,14 +232,25 @@ function main {
 
 	if [[ ${verbose} == true ]]; then
 		function kill {
-			echo "Sending singal $2 to:" "${@:3}"
-			builtin kill "$@"
+			exclude_self "${@:3}"
+
+			if [[ ${#__A0[@]} -gt 0 ]]; then
+				echo "Sending singal $2 to:" "${__A0[@]}"
+				builtin kill -s "$2" "${__A0[@]}"
+			else
+				echo "No process to send signal to."
+			fi
 		}
 
 		function log_verbose {
 			echo "$@"
 		}
 	else
+		function kill {
+			exclude_self "${@:3}"
+			[[ ${#__A0[@]} -gt 0 ]] && builtin kill -s "$2" "${__A0[@]}"
+		}
+
 		function log_verbose {
 			:
 		}
@@ -240,12 +260,14 @@ function main {
 
 	for __ in "${targets[@]}"; do
 		if [[ $__ == +([[:digit:]]) ]]; then
+			[[ $__ == "${SELF}" ]] && fail "Not targetting self ($__)."
 			target_pids+=("$__")
 		else
 			IFS=$'\n' read -ra pids -d '' < <(exec pgrep -x -- "$__")
-			[[ ${#pids[@]} -eq 0 ]] && fail "No process found from name: $__"
-			log_verbose "Processes matching $__: ${pids[@]}"
-			target_pids+=("${pids[@]}")
+			exclude_self "${pids[@]}"
+			[[ ${#__A0[@]} -eq 0 ]] && fail "No process found from name: $__"
+			log_verbose "Processes matching $__: ${__A0[@]}"
+			target_pids+=("${__A0[@]}")
 		fi
 	done
 
