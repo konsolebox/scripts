@@ -199,7 +199,7 @@ function main {
 		-r|--reverse)
 			function_suffix='_3'
 			;;
-		-s)
+		-s|--signal)
 			signal=$2
 			shift
 			;;
