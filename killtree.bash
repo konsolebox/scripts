@@ -180,6 +180,7 @@ function fail {
 
 function exclude_self {
 	__A0=()
+	local __
 
 	for __; do
 		[[ $__ != "${SELF}" ]] && __A0+=("$__")
