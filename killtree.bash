@@ -31,7 +31,7 @@ function kill_tree {
 
 # kill_tree_2 (pid, [signal = SIGTERM])
 #
-# This version kills processes as it goes.
+# This version sends signals to processes as it goes.
 #
 function kill_tree_2 {
 	local list=() s=${2-SIGTERM} __
@@ -45,7 +45,7 @@ function kill_tree_2 {
 
 # kill_tree_3 (pid, [signal = SIGTERM])
 #
-# This version kills child processes first before the parent.
+# This version sends signals to child processes first before the parents.
 #
 function kill_tree_3 {
 	local list=() s=${2-SIGTERM} __
@@ -71,7 +71,7 @@ function kill_children {
 
 # kill_children_2 (pid, [signal = SIGTERM])
 #
-# This version kills processes as it goes.
+# This version sends signals to processes as it goes.
 #
 function kill_children_2 {
 	local list=() s=${2-SIGTERM} __
@@ -84,7 +84,7 @@ function kill_children_2 {
 
 # kill_children_3 (pid, [signal = SIGTERM])
 #
-# This version kills child processes first before the parent.
+# This version sends signals to child processes first before the parents.
 #
 function kill_children_3 {
 	local list=() s=${2-SIGTERM} __
@@ -140,9 +140,9 @@ Options:
   -c, --children-only  Only send signals to child processes, not the
                        specified parents.
   -h, --help           Show this help message.
-  -o, --one-at-a-time  Send signal to a process every after it gets its
+  -o, --one-at-a-time  Immediately send signal to process after it gets its
                        child processes enumerated.
-  -r, --reverse        Process child processes first before parents.
+  -r, --reverse        Send signals to child processes first before parents.
   -s, --signal signal  Specify the signal to be sent to every process.
                        The default is SIGTERM.
   -S, --simultaneous   Simultaneously send signals to all processes after they
