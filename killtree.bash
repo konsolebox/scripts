@@ -139,7 +139,7 @@ Options:
   -a, --all            Send signal to all processes.  (Default)
   -c, --children-only  Only send signals to child processes, not the
                        specified parents.
-  -h, --help           Show this help message.
+  -h, --help           Show this help message and exit.
   -H, --ignore-sighup  Catch SIGHUP signal and ignore it.
   -o, --one-at-a-time  Immediately send signal to process after it gets its
                        child processes enumerated.
@@ -148,8 +148,8 @@ Options:
                        The default is SIGTERM.
   -S, --simultaneous   Simultaneously send signals to all processes after they
                        get enumerated.  (Default)
-  -v, --verbose        Be verbose.
-  -V, --version        Show version.
+  -v, --verbose        Show verbose messages.
+  -V, --version        Show version and exit.
 
 The default action is to send signals to all processes simultaneously, and the
 default signal is SIGTERM.
