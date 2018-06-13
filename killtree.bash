@@ -240,8 +240,6 @@ function main {
 			if [[ ${#__A0[@]} -gt 0 ]]; then
 				echo "Sending singal $2 to:" "${__A0[@]}"
 				builtin kill -s "$2" "${__A0[@]}"
-			else
-				echo "No process to send signal to."
 			fi
 		}
 
