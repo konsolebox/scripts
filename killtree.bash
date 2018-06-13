@@ -6,9 +6,11 @@
 #
 # Sends signals to process trees with style.
 #
-# Usage: killtree[.bash] [options] [--] process_name_or_pid ...
+# Usage: killtree[.bash] [options] [--] pattern ...
 #
-# This script also contains reusable functions.
+# This script uses pgrep.
+#
+# It contains reusable functions.
 #
 # Disclaimer: This tool comes with no warranty.
 #
@@ -133,7 +135,10 @@ VERSION=2018-06-13
 function show_help_info {
 	echo "Sends signals to process trees with style.
 
-Usage: $0 [options] [--] process_name_or_id ...
+Usage: $0 [options] [--] pattern ...
+
+This script uses pgrep.  Expansion of pattern depends on how pgrep
+expands it.  See pgrep(1).
 
 Options:
   -a, --all            Send signal to all processes.  (Default)
