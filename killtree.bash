@@ -247,7 +247,7 @@ function main {
 			exclude_self "${@:3}"
 
 			if [[ ${#__A0[@]} -gt 0 ]]; then
-				echo "Sending singal $2 to:" "${__A0[@]}"
+				echo "Sending $2 to:" "${__A0[@]}"
 				builtin kill -s "$2" "${__A0[@]}"
 			fi
 		}
