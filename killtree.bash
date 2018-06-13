@@ -66,7 +66,7 @@ function kill_tree_3 {
 function kill_children {
 	local LIST=()
 	list_children_ "$1"
-	kill -s "${2-SIGTERM}" "${LIST[@]}"
+	[[ ${#LIST[@]} -gt 0 ]] && kill -s "${2-SIGTERM}" "${LIST[@]}"
 }
 
 # kill_children_2 (pid, [signal = SIGTERM])
