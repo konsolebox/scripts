@@ -230,7 +230,7 @@ function main {
 			break
 			;;
 		-*)
-			fail "Invalid option: $1"
+			fail "Invalid option '$1'.  Run with '--help' for usage info."
 			;;
 		*)
 			targets+=("$1")
@@ -240,7 +240,7 @@ function main {
 		shift
 	done
 
-	[[ ${#targets[@]} -eq 0 ]] && fail "No target specified."
+	[[ ${#targets[@]} -eq 0 ]] && fail "No target specified.  Run with '--help' for usage info."
 
 	if [[ ${verbose} == true ]]; then
 		function kill {
