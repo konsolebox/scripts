@@ -158,14 +158,18 @@ together as arguments, but only the last specified option becomes effective.
 The behavior also applies to '--all' and '--children-only'.  It allows
 cancelling out default arguments.
 
-killtree excludes itself from matched targets.  It also bails out if its PID
-is explicitly specified as an argument.
+killtree excludes itself from matched targets.  It also prints a warning message
+if its PID is specified as an argument.
 
 Exit Status:
 The script returns 0 only when one or more processes are processed.
 
 Example:
 $0 --children-only --reverse --signal SIGHUP 1234 zombie"
+}
+
+function log_warning {
+	echo "Warning: $@"
 }
 
 function fail {
@@ -261,7 +265,7 @@ function main {
 
 	for __ in "${targets[@]}"; do
 		if [[ $__ == +([[:digit:]]) ]]; then
-			[[ $__ == "${SELF}" ]] && fail "Not targetting self ($__)."
+			[[ $__ == "${SELF}" ]] && log_warning "Excluding self ($__) from target list."
 			target_pids+=("$__")
 		else
 			IFS=$'\n' read -ra pids -d '' < <(exec pgrep -x -- "$__")
@@ -272,8 +276,8 @@ function main {
 		fi
 	done
 
+	[[ ${#target_pids[@]} -eq 0 ]] && fail "No valid target specified."
 	log_verbose "Parent targets: ${target_pids[@]}"
-
 	local func=kill_${tree_or_children}${function_suffix}
 
 	for __ in "${target_pids[@]}"; do
