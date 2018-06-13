@@ -140,6 +140,7 @@ Options:
   -c, --children-only  Only send signals to child processes, not the
                        specified parents.
   -h, --help           Show this help message.
+  -H, --ignore-sighup  Catch SIGHUP signal and ignore it.
   -o, --one-at-a-time  Immediately send signal to process after it gets its
                        child processes enumerated.
   -r, --reverse        Send signals to child processes first before parents.
@@ -186,7 +187,8 @@ function exclude_self {
 }
 
 function main {
-	local function_suffix= signal=SIGTERM targets=() tree_or_children=tree verbose=false
+	local function_suffix= ignore_sighup=false signal=SIGTERM targets=() \
+			tree_or_children=tree verbose=false
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
@@ -199,6 +201,9 @@ function main {
 		-h|--help)
 			show_help_info
 			return 1
+			;;
+		-H|--ignore-sighup)
+			ignore_sighup=true
 			;;
 		-o|--one-at-a-time)
 			function_suffix='_2'
@@ -280,6 +285,7 @@ function main {
 	log_verbose "Parent targets: ${target_pids[@]}"
 	log_verbose "Self: ${SELF}"
 	local func=kill_${tree_or_children}${function_suffix}
+	[[ ${ignore_sighup} == true ]] && trap : SIGHUP
 
 	for __ in "${target_pids[@]}"; do
 		log_verbose "Call: ${func} $__"
