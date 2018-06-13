@@ -14,7 +14,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 12, 2018
+# June 13, 2018
 
 # ----------------------------------------------------------
 
@@ -128,7 +128,7 @@ function list_children_ {
 # ----------------------------------------------------------
 
 SELF=${BASHPID-$$}
-VERSION=2018-06-12
+VERSION=2018-06-13
 
 function show_help_info {
 	echo "Sends signals to process trees with style.
@@ -157,6 +157,9 @@ The options '--one-at-a-time', '--reverse', and '--simultaneous' can be used
 together as arguments, but only the last specified option becomes effective.
 The behavior also applies to '--all' and '--children-only'.  It allows
 cancelling out default arguments.
+
+killtree excludes itself from matched targets.  It also bails out if its PID
+is explicitly specified as an argument.
 
 Exit Status:
 The script returns 0 only when one or more processes are processed.
