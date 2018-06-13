@@ -278,6 +278,7 @@ function main {
 
 	[[ ${#target_pids[@]} -eq 0 ]] && fail "No valid target specified."
 	log_verbose "Parent targets: ${target_pids[@]}"
+	log_verbose "Self: ${SELF}"
 	local func=kill_${tree_or_children}${function_suffix}
 
 	for __ in "${target_pids[@]}"; do
@@ -285,6 +286,7 @@ function main {
 		"${func}" "$__" "${signal}"
 	done
 
+	log_verbose Done.
 	return 0
 }
 
