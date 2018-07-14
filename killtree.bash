@@ -705,7 +705,7 @@ function prepare_secondary_filter {
 			function do_secondary_filter {
 				__A0=()
 
-				if [[ $# -eq 0 ]]; then
+				if [[ $# -gt 0 ]]; then
 					local pids=() args IFS=$'\n' pid i
 
 					for i in "${!SEC_FILTER_INDICES[@]}"; do
