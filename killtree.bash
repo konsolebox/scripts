@@ -332,7 +332,7 @@ Target Mode and Strategy Details
 
   When the '--children' option is in effect, the options '--one-at-a-time',
   '--reverse', and '--simultaneous' are virtually the same since targets belong
-  in one level.
+  to only one level.
 
 Other Details
 
