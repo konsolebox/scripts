@@ -6,9 +6,9 @@
 #
 # Sends signals to process trees with style.
 #
-# Usage: killtree[.bash] [options] [--] [[pattern|pid][/'filter_opts'] ...]
-#               [// [[filter_opts] [--] [[pattern|pid][/'filter_opts'] ...]]
-#                [// [filter_opts] [--] [[pattern|pid][/'filter_opts'] ...]]]
+# Usage: killtree[.bash] [options] [--] [[pattern|pid][/'filter_opts']] ...
+#                [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
+#                [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
 #
 # This script uses pgrep.
 #
@@ -18,7 +18,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 14, 2018
+# July 15, 2018
 #
 # ------------------------------------------------------------------------------
 
@@ -200,16 +200,16 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2018-07-14
+VERSION=2018-07-15
 
 shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
 
 function show_help_info {
 	echo "Sends signals to process trees with style.
 
-Usage: $0 [options] [--] [[pattern|pid]/['filter_opts']] ...
-       [// [[filter_opts] [--] [[pattern|pid][/'filter_opts'] ...]]
-        [// [filter_opts] [--] [[pattern|pid][/'filter_opts'] ...]]]
+Usage: killtree[.bash] [options] [--] [[pattern|pid][/'filter_opts']] ...
+               [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
+               [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
 
 This script uses pgrep.  Expansion of pattern depends on how pgrep expands it.
 See pgrep(1).  To prevent a pattern from being interpreted as a PID, place it
@@ -348,8 +348,8 @@ Exit Status
 
 Examples
 
-  $0 --descendants --reverse --signal SIGKILL --exact -- 1234 zombie
-  $0 --unify --terminal tty5 --signal SIGHUP // // --exact bash"
+  killtree --descendants --reverse --signal SIGKILL --exact -- 1234 zombie
+  killtree --unify --terminal tty5 --signal SIGHUP // // --exact bash"
 }
 
 function log_info {
