@@ -925,6 +925,76 @@ function setup_kill_function {
 	fi
 }
 
+function parse_tertiary_args {
+	TER_GLOBAL_ID=$(( ++TARGET_ID ))
+
+	while [[ $# -gt 0 ]]; do
+		if parse_filter_opts "${TER_GLOBAL_ID}" "$1" "$2"; then
+			shift "$__I0"
+		else
+			case $1 in
+			--)
+				while shift; [[ $# -gt 0 ]]; do
+					[[ $1 == // ]] && fail "Unexpected third use of '//'."
+					parse_target_expr "$1"
+					LAST_TER_TARGET_ID=${TARGET_ID}
+				done
+				;;
+			-*)
+				fail "Invalid or unexpected option '$1'."
+				;;
+			//)
+				fail "Unexpected third use of '//'."
+				;;
+			+(/))
+				fail "Invalid argument: $1"
+				;;
+			*)
+				parse_target_expr "$1"
+				LAST_TER_TARGET_ID=${TARGET_ID}
+				;;
+			esac
+
+			shift
+		fi
+	done
+}
+
+function parse_secondary_args {
+	SEC_GLOBAL_ID=$(( ++TARGET_ID ))
+
+	while [[ $# -gt 0 ]]; do
+		if [[ $1 == // ]]; then
+			parse_tertiary_args "${@:2}"
+			break
+		elif parse_filter_opts "${SEC_GLOBAL_ID}" "$1" "$2"; then
+			shift "$__I0"
+		else
+			case $1 in
+			--)
+				while shift; [[ $# -gt 0 ]]; do
+					[[ $1 == // ]] && continue 2
+					parse_target_expr "$1"
+					LAST_SEC_TARGET_ID=${TARGET_ID}
+				done
+				;;
+			-*)
+				fail "Invalid or unexpected option '$1'."
+				;;
+			+(/))
+				fail "Invalid argument: $1"
+				;;
+			*)
+				parse_target_expr "$1"
+				LAST_SEC_TARGET_ID=${TARGET_ID}
+				;;
+			esac
+
+			shift
+		fi
+	done
+}
+
 function main {
 	local exact_match=false function_suffix= euids= groups= ignore_case=false \
 			ignore_sighup=false list_ref=TREE[@] ns= nslist= pgroups= \
@@ -932,7 +1002,10 @@ function main {
 			target_class=tree uids= __
 
 	while [[ $# -gt 0 ]]; do
-		if parse_filter_opts 0 "$1" "$2"; then
+		if [[ $1 == // ]]; then
+			parse_secondary_args "${@:2}"
+			break
+		elif parse_filter_opts 0 "$1" "$2"; then
 			shift "$__I0"
 		else
 			case $1 in
@@ -1019,73 +1092,6 @@ function main {
 				;;
 			-*)
 				fail "Invalid option '$1'.  Run with '--help' for usage info."
-				;;
-			//)
-				SEC_GLOBAL_ID=$(( ++TARGET_ID ))
-				shift
-
-				while [[ $# -gt 0 ]]; do
-					if parse_filter_opts "${SEC_GLOBAL_ID}" "$1" "$2"; then
-						shift "$__I0"
-					else
-						case $1 in
-						--)
-							while shift; [[ $# -gt 0 ]]; do
-								[[ $1 == // ]] && continue 2
-								parse_target_expr "$1"
-								LAST_SEC_TARGET_ID=${TARGET_ID}
-							done
-							;;
-						-*)
-							fail "Invalid or unexpected option '$1'."
-							;;
-						//)
-							TER_GLOBAL_ID=$(( ++TARGET_ID ))
-							shift
-
-							while [[ $# -gt 0 ]]; do
-								if parse_filter_opts "${TER_GLOBAL_ID}" "$1" "$2"; then
-									shift "$__I0"
-								else
-									case $1 in
-									--)
-										while shift; [[ $# -gt 0 ]]; do
-											[[ $1 == // ]] && fail "Unexpected third use of '//'."
-											parse_target_expr "$1"
-											LAST_TER_TARGET_ID=${TARGET_ID}
-										done
-										;;
-									-*)
-										fail "Invalid or unexpected option '$1'."
-										;;
-									//)
-										fail "Unexpected third use of '//'."
-										;;
-									+(/))
-										fail "Invalid argument: $1"
-										;;
-									*)
-										parse_target_expr "$1"
-										LAST_TER_TARGET_ID=${TARGET_ID}
-										;;
-									esac
-
-									shift
-								fi
-							done
-							;;
-						+(/))
-							fail "Invalid argument: $1"
-							;;
-						*)
-							parse_target_expr "$1"
-							LAST_SEC_TARGET_ID=${TARGET_ID}
-							;;
-						esac
-
-						shift
-					fi
-				done
 				;;
 			+(/))
 				fail "Invalid argument: $1"
