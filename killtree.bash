@@ -164,6 +164,7 @@ function list_children {
 
 ASK=false
 ASK_ONCE=false
+EXCLUDED_SELF=false
 FILTER_EUIDS=()
 FILTER_EXACT=()
 FILTER_EXACT_DEFAULT=false
@@ -431,12 +432,19 @@ function check_if_valid_nslist_arg {
 		log_warning "Ignoring empty elements in list argument to '${opt}': ${arg}"
 }
 
+function warn_excluding_self {
+	if [[ ${VERBOSE} == true || ${EXCLUDED_SELF} == false ]]; then
+		log_warning "Excluding self ($__) from matches."
+		EXCLUDED_SELF=true
+	fi
+}
+
 function exclude_self {
 	__A0=()
 	local __
 
 	for __ do
-		[[ $__ != "${SELF}" ]] && __A0+=("$__") || echo "Excluding self ($__) from matches."
+		[[ $__ != "${SELF}" ]] && __A0+=("$__") || warn_excluding_self
 	done
 }
 
@@ -620,7 +628,7 @@ function collect_initial_targets {
 
 		if [[ ${target} == +([[:digit:]]) ]]; then
 			if [[ ${target} == "${SELF}" ]]; then
-				log_warning "Excluding self (${SELF}) from target list."
+				warn_excluding_self
 			elif [[ ${#pgrep_opts[@]} -gt 0 ]]; then
 				for pid in $(pgrep "${pgrep_opts[@]}"); do
 					if [[ ${target} == "${pid}" ]]; then
@@ -680,7 +688,7 @@ function prepare_secondary_filter {
 
 			if [[ ${target} == +([[:digit:]]) ]]; then
 				if [[ ${target} == "${SELF}" ]]; then
-					log_warning "Excluding self (${SELF}) from target list."
+					warn_excluding_self
 				else
 					args=("${pgrep_opts[@]}")
 					SEC_FILTER_INDICES[SEC_FILTER_ID]=${#SEC_FILTER_ARGS[@]}
@@ -748,7 +756,7 @@ function prepare_tertiary_filter {
 
 			if [[ ${target} == +([[:digit:]]) ]]; then
 				if [[ ${target} == "${SELF}" ]]; then
-					log_warning "Excluding self (${SELF}) from target list."
+					warn_excluding_self
 				else
 					args=("${pgrep_opts[@]}")
 					TER_FILTER_INDICES[TER_FILTER_ID]=${#TER_FILTER_ARGS[@]}
