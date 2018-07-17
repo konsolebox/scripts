@@ -1,0 +1,63 @@
+getcleanpath() {
+	GETCLEANPATH_OLD_FLAGS=$-
+	GETCLEANPATH_OLD_IFS=$IFS
+	IFS=/
+	set -f
+
+	case $1 in
+	/*)
+		set -- $1
+		;;
+	*)
+		gwd
+		set -- $__ $1
+		;;
+	esac
+
+	__=
+
+	while [ "$#" -gt 0 ]; do
+		case $1 in
+		.|''|..)
+			shift
+			continue
+			;;
+		esac
+
+		GETCLEANPATH_TEMP=$1
+		shift
+
+		while [ "$#" -gt 0 ]; do
+			case $1 in
+			.|'')
+				shift
+				continue
+				;;
+			esac
+
+			break
+		done
+
+		case $1 in
+		..)
+			shift
+			set -- $__ "$@"
+			__=
+			continue
+			;;
+		esac
+
+		__=$__/$GETCLEANPATH_TEMP
+	done
+
+	case $GETCLEANPATH_OLD_FLAGS in
+	*f*)
+		;;
+	*)
+		set +f
+		;;
+	esac
+
+	IFS=$GETCLEANPATH_OLD_IFS
+	[ -z "$__" ] && __=/
+}

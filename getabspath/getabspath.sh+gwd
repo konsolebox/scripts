@@ -1,0 +1,72 @@
+getabspath() {
+	GETABSPATH_ARG=$1
+	GETABSPATH_OLD_FLAGS=$-
+	GETABSPATH_OLD_IFS=$IFS
+	IFS=/
+	set -f
+
+	case $1 in
+	/*)
+		set -- $1
+		;;
+	*)
+		gwd
+		set -- `$__` $1
+		;;
+	esac
+
+	__=
+
+	while [ "$#" -gt 0 ]; do
+		case $1 in
+		..|.|'')
+			shift
+			continue
+			;;
+		esac
+
+		GETABSPATH_TEMP=$1
+		shift
+
+		while [ "$#" -gt 0 ]; do
+			case $1 in
+			.|'')
+				shift
+				continue
+				;;
+			esac
+
+			break
+		done
+
+		case $1 in
+		..)
+			shift
+			set -- $__ "$@"
+			__=
+			continue
+			;;
+		esac
+
+		__=$__/$GETABSPATH_TEMP
+	done
+
+	case $GETABSPATH_OLD_FLAGS in
+	*f*)
+		;;
+	*)
+		set +f
+		;;
+	esac
+
+	IFS=$GETABSPATH_OLD_IFS
+
+	case $GETABSPATH_ARG in
+	*/)
+		__=$__/
+		;;
+	*)
+		[ -z "$__" ] && __=/.
+		;;
+	esac
+}
