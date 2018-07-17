@@ -18,7 +18,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 15, 2018
+# July 17, 2018
 #
 # ------------------------------------------------------------------------------
 
@@ -200,7 +200,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2018-07-15
+VERSION=2018-07-17
 
 shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
 
@@ -1008,7 +1008,8 @@ function main {
 				return 2
 				;;
 			--)
-				while shift; [[ $# -gt 0 && $1 != // ]]; do
+				while shift; [[ $# -gt 0 ]]; do
+					[[ $1 == // ]] && continue 2
 					parse_target_expr "$1"
 					LAST_PRI_TARGET_ID=${TARGET_ID}
 				done
@@ -1029,7 +1030,8 @@ function main {
 					else
 						case $1 in
 						--)
-							while shift; [[ $# -gt 0 && $1 != // ]]; do
+							while shift; [[ $# -gt 0 ]]; do
+								[[ $1 == // ]] && continue 2
 								parse_target_expr "$1"
 								LAST_SEC_TARGET_ID=${TARGET_ID}
 							done
@@ -1047,7 +1049,8 @@ function main {
 								else
 									case $1 in
 									--)
-										while shift; [[ $# -gt 0 && $1 != // ]]; do
+										while shift; [[ $# -gt 0 ]]; do
+											[[ $1 == // ]] && fail "Unexpected third use of '//'."
 											parse_target_expr "$1"
 											LAST_TER_TARGET_ID=${TARGET_ID}
 										done
