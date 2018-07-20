@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# April 30, 2016 (Last Updated 2017/10/03)
+# April 30, 2016 (Last Updated 2018/07/21)
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2017-10-03'
+VERSION = '2018-07-21'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -958,7 +958,7 @@ def main
         log_verbose "Ignoring entry that matches an exclusive filter set: #{resolver_address}"
       elsif not resolver_address =~ /^([[:alnum:]]{1,3}.){3}[[:alnum:]]{1,3}(:[[:digit:]]+)?$/
         log_warning "Ignoring entry with invalid or unsupported resolver address: #{resolver_address}"
-      elsif not provider_name =~ /^[[:alnum:]]+[[:alnum:]-.]+[.][[:alpha:]]+$/
+      elsif not provider_name =~ /^[[:alnum:]]+[[:alnum:].-]+[.][[:alpha:]]+$/
         log_warning "Ignoring entry with invalid provider name: #{resolver_address} (#{provider_name})"
       elsif not provider_key =~ /^([[:alnum:]]{4}:){15}[[:alnum:]]{4}$/
         log_warning "Ignoring entry with invalid provider key: #{resolver_address} (#{provider_key})"
