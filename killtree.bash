@@ -18,7 +18,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 20, 2018
+# July 21, 2018
 #
 # ------------------------------------------------------------------------------
 
@@ -201,7 +201,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2018-07-20
+VERSION=2018-07-21
 
 shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
 
@@ -857,12 +857,12 @@ function ask_send_sig {
 			[[ i -gt l ]] && l=$i
 		done
 
-		echo "Send ${signal} to these processes? "
-		printf '%*s %s\n' "$l" PID CMD
+		echo "Send ${signal} to these processes? " >&2
+		printf '%*s %s\n' "$l" PID CMD >&2
 
 		for __ do
 			get_process_cmd "$__"
-			printf '%*s %s\n' "$l" "$__" "${CMD}"
+			printf '%*s %s\n' "$l" "$__" "${CMD}" >&2
 		done
 
 		ask_for_yn "> "
