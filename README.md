@@ -58,6 +58,11 @@ specified in an integrated list.
 
 Searches for manual pages based on `$MANPATH`.
 
+#### map-partitions.bash
+
+This tool maps partitions in a block device to logical devices using
+dmsetup and sfdisk.
+
 #### rcopy.bash
 
 Copies files along with their dependencies to a virtual root directory.
