@@ -167,6 +167,7 @@ if [[ $(type -t sleep) != builtin ]]; then
 			if [[ -n ${SLEEP_FD} ]]; then
 				local start=${SECONDS}
 				read -u "${SLEEP_FD}" -t "$1"
+				true
 
 				if [[ SECONDS -eq start ]]; then
 					[[ SLEEP_FD -ne 0 ]] && eval "exec ${SLEEP_FD}<&-"
