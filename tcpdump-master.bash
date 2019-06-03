@@ -200,7 +200,6 @@ function check_tcpdump {
 
 function start_tcpdump {
 	log "Starting tcpdump."
-
 	get_date
 	CURRENT_DATE=$__
 	local basename=${TCPDUMP_CAPTURE_FILE_PREFIX}${CURRENT_DATE}${TCPDUMP_CAPTURE_FILE_SUFFIX}
