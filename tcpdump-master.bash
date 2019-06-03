@@ -137,7 +137,25 @@ fi
 function log {
 	get_date_and_time
 	printf "[%s] %s\n" "$__" "$1" >> "${MAIN_LOG_FILE}"
-	printf "%s\n" "$1"
+	printf "* %s\n" "$1"
+}
+
+function log_divider {
+	log "----------------------------------------"
+}
+
+function log_error {
+	log "[ERROR] $1"
+}
+
+function log_final_error {
+	log_error "$1"
+	log_divider
+	exit 1
+}
+
+function log_stderr {
+	printf "* %s\n" "$1" >&2
 }
 
 if [[ $(type -t sleep) != builtin ]]; then
@@ -230,7 +248,7 @@ function start_tcpdump {
 
 function start_tcpdump_loop {
 	until start_tcpdump; do
-		log "Error: Failed to start tcpdump.  Waiting for 20 seconds before next attempt."
+		log_error "Failed to start tcpdump.  Waiting for 20 seconds before next attempt."
 		sleep 20
 
 		if [[ ${QUIT} == true ]]; then
@@ -264,18 +282,24 @@ function main {
 	local capture_file_pattern="${TCPDUMP_CAPTURE_FILE_PREFIX}[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]${TCPDUMP_CAPTURE_FILE_SUFFIX}.log*"
 	[[ ${MAIN_LOG_FILE} != */* ]] && MAIN_LOG_FILE=${LOG_DIR}/${MAIN_LOG_FILE}
 
-	log "----------------------------------------"
-	log "Starting up."
-	log "PID: $$"
-
-	[[ ${MAIN_LOG_FILE_MAX_SIZE} == +([[:digit:]]) && MAIN_LOG_FILE_MAX_SIZE -gt DD_BLOCK_SIZE ]] || {
-		echo "MAIN_LOG_FILE_MAX_SIZE is not valid: ${MAIN_LOG_FILE_MAX_SIZE}"
+	: >> "${MAIN_LOG_FILE}" || {
+		log_stderr "Unable to create or write to main log file '${MAIN_LOG_FILE}'."
 		return 1
 	}
 
+	log_divider
+	log "Starting up."
+	log "PID: $$"
+
+	[[ -d ${LOG_DIR} ]] || log_final_error "Main log directory '${LOG_DIR}' is not a directory."
+	[[ -w ${LOG_DIR} ]] || log_final_error "Main log directory '${LOG_DIR}' is not writable."
+
+	[[ ${MAIN_LOG_FILE_MAX_SIZE} == +([[:digit:]]) && MAIN_LOG_FILE_MAX_SIZE -gt DD_BLOCK_SIZE ]] || {
+		log_final_error "MAIN_LOG_FILE_MAX_SIZE is not valid: ${MAIN_LOG_FILE_MAX_SIZE}"
+	}
+
 	[[ ${MAIN_LOG_FILE_ALLOWANCE} == +([[:digit:]]) && MAIN_LOG_FILE_ALLOWANCE -gt DD_BLOCK_SIZE && MAIN_LOG_FILE_ALLOWANCE -lt MAIN_LOG_FILE_MAX_SIZE ]] || {
-		echo "MAIN_LOG_FILE_ALLOWANCE is not valid: ${MAIN_LOG_FILE_ALLOWANCE}"
-		return 1
+		log_final_error "MAIN_LOG_FILE_ALLOWANCE is not valid: ${MAIN_LOG_FILE_ALLOWANCE}"
 	}
 
 	local s
@@ -337,7 +361,7 @@ function main {
 				if [[ $? -eq 0 ]]; then
 					log "Done."
 				else
-					log "Something failed."
+					log_error "Something failed."
 				fi
 			fi
 		fi
@@ -346,7 +370,7 @@ function main {
 	log "Shutting down."
 	check_tcpdump && stop_tcpdump
 	[[ SLEEP_FD -gt 0 ]] && eval "exec ${SLEEP_FD}<&-"
-	log "----------------------------------------"
+	log_divider
 }
 
 # Start.
