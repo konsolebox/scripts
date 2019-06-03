@@ -19,7 +19,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2019
+# June 3, 2019
 
 # Copyright-related details:
 #
@@ -44,7 +44,7 @@
 # The full text of the MIT License follows:
 #
 # ========================================================================
-# Copyright (c) 2018 konsolebox
+# Copyright (c) 2019 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -162,17 +162,21 @@ if [[ $(type -t sleep) != builtin ]]; then
 					sleep "$1"
 				fi
 			elif type -P sleep >/dev/null; then
+				function sleep {
+					command sleep "$1"
+				}
+
 				command sleep "$1"
 			else
 				log "Can't sleep."
-				QUIT=true
+				false
 			fi
 		fi
 	}
 fi
 
 function check_tcpdump {
-	[[ ${TCPDUMP_PID} -ne 0 ]] && kill -s 0 "${TCPDUMP_PID}" 2>/dev/null
+	[[ TCPDUMP_PID -ne 0 ]] && kill -s 0 "${TCPDUMP_PID}" 2>/dev/null
 }
 
 function start_tcpdump {
@@ -288,8 +292,7 @@ function main {
 	local i
 
 	for (( i = 1;; i = (i + 1) % 10000 )); do
-		[[ ${QUIT} == true ]] && break
-		sleep 1
+		[[ ${QUIT} != true ]] && sleep 1 && [[ ${QUIT} != true ]] || break
 
 		if (( (i % TCPDUMP_CHECK_INTERVALS) == 0 )); then
 			get_date
@@ -342,7 +345,7 @@ function main {
 
 	log "Shutting down."
 	check_tcpdump && stop_tcpdump
-	[[ -n ${SLEEP_FD} && SLEEP_FD -ne 0 ]] && eval "exec ${SLEEP_FD}<&-"
+	[[ SLEEP_FD -gt 0 ]] && eval "exec ${SLEEP_FD}<&-"
 	log "----------------------------------------"
 }
 
