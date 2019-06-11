@@ -96,7 +96,7 @@ MAIN_LOG_FILE_ALLOWANCE=$(( 1 * 1024 * 1024 ))  ## Bytes.  It's an extra space g
                                                 ##         max size again.
 MAIN_LOG_CHECK_INTERVALS=300                    ## Seconds.  Recommended: >= 300
 
-TCPDUMP='/usr/sbin/tcpdump'
+TCPDUMP='/usr/sbin/tcpdump'             ## Absolute path to tcpdump must be specified.
 TCPDUMP_ARGS=(-C 1)                     ## Add extra tcpdump arguments here.
                                         ## E.g. TCPDUMP_ARGS=(-C 1 -i ens33)
 TCPDUMP_CAPTURE_FILE_PREFIX='capture-'
@@ -199,8 +199,14 @@ function check_tcpdump {
 	[[ TCPDUMP_PID -ne 0 ]] && kill -s 0 "${TCPDUMP_PID}" 2>/dev/null
 }
 
+function check_tcpdump_exec {
+	[[ -e ${TCPDUMP} ]] || log_final_error "Tcpdump binary '${TCPDUMP}' does not exist."
+	[[ -x ${TCPDUMP} ]] || log_final_error "Tcpdump binary '${TCPDUMP}' is not executable."
+}
+
 function start_tcpdump {
 	log "Starting tcpdump."
+	check_tcpdump_exec
 	get_date
 	CURRENT_DATE=$__
 	local basename=${TCPDUMP_CAPTURE_FILE_PREFIX}${CURRENT_DATE}${TCPDUMP_CAPTURE_FILE_SUFFIX}
@@ -297,6 +303,7 @@ function main {
 	log_divider
 	log "Starting up."
 	log "PID: $$"
+	check_tcpdump_exec
 
 	[[ -d ${LOG_DIR} ]] || log_final_error "Main log directory '${LOG_DIR}' is not a directory."
 	[[ -w ${LOG_DIR} ]] || log_final_error "Main log directory '${LOG_DIR}' is not writable."
