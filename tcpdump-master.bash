@@ -87,6 +87,9 @@ shopt -s extglob
 # Configuration variables
 
 LOG_DIR='/var/log/tcpdump'
+LOG_PREFIX='* '  ## Prefix string added to the messages in main log file so the messages coming from
+                 ## this script and not from tcpdump itself are easily recognized.  Feel free to
+                 ## customize.
 
 MAIN_LOG_FILE='main.log'                        ## ${LOG_DIR}/ is prepended to this if it's in
                                                 ## basename form.
@@ -141,7 +144,7 @@ fi
 function log {
 	get_date_and_time
 	printf "[%s] %s\n" "$__" "$1" >> "${MAIN_LOG_FILE}"
-	printf "* %s\n" "$1"
+	printf "%s%s\n" "${LOG_PREFIX}" "$1"
 }
 
 function log_divider {
@@ -159,7 +162,7 @@ function log_final_error {
 }
 
 function log_stderr {
-	printf "* %s\n" "$1" >&2
+	printf "%s%s\n" "${LOG_PREFIX}" "$1" >&2
 }
 
 if [[ $(type -t sleep) != builtin ]]; then
