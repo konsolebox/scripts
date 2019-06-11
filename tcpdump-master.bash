@@ -107,6 +107,10 @@ DAYS_OLD=14        ## Days
 DD_BLOCK_SIZE=512  ## Bytes
 TEMP_DIR='/var/tmp'
 
+STAT='/usr/bin/stat'  ## Location of the stat executable.
+                      ## It's not needed if the 'get_file_size' function is already customized to
+                      ## use another executable or method for getting file size.
+
 # Other runtime variables
 
 CURRENT_DATE=
@@ -275,6 +279,12 @@ function signal_caught_callback {
 	QUIT=true
 }
 
+function get_file_size {
+	# This command can be modified to use another tool for getting file size.
+
+	__=$("${STAT}" -c '%s' "${MAIN_LOG_FILE}") && [[ -n $__ ]]
+}
+
 function main {
 	local capture_file_pattern="${TCPDUMP_CAPTURE_FILE_PREFIX}[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]${TCPDUMP_CAPTURE_FILE_SUFFIX}.log*"
 	[[ ${MAIN_LOG_FILE} != */* ]] && MAIN_LOG_FILE=${LOG_DIR}/${MAIN_LOG_FILE}
@@ -299,6 +309,8 @@ function main {
 		log_final_error "MAIN_LOG_FILE_ALLOWANCE is not valid: ${MAIN_LOG_FILE_ALLOWANCE}"
 	}
 
+	get_file_size "${MAIN_LOG_FILE}" || log_final_error "Unable to get file size of '${MAIN_LOG_FILE}'."
+
 	local s
 
 	for s in SIGHUP SIGQUIT SIGINT SIGTERM; do
@@ -310,7 +322,7 @@ function main {
 
 	mkdir -p -- "${LOG_DIR}"
 	start_tcpdump_loop
-	local i
+	local i unable_to_get_file_size_logged
 
 	for (( i = 1;; i = (i + 1) % 10000 )); do
 		[[ ${QUIT} != true ]] && sleep 1 && [[ ${QUIT} != true ]] || break
@@ -344,21 +356,28 @@ function main {
 		fi
 
 		if (( (i % MAIN_LOG_CHECK_INTERVALS) == 0 )); then
-			local size=$(stat --printf=%s "${MAIN_LOG_FILE}")
+			if get_file_size; then
+				local size=$__
 
-			if [[ ${size} == +([[:digit:]]) && size -gt MAIN_LOG_FILE_MAX_SIZE ]]; then
-				log "Reducing log data in ${MAIN_LOG_FILE}."
-				local temp_file=${TEMP_DIR}/tcpdump-${RANDOM}.tmp
-				local skip=$(( (size - (MAIN_LOG_FILE_MAX_SIZE - MAIN_LOG_FILE_ALLOWANCE)) / DD_BLOCK_SIZE ))
+				if [[ size -gt MAIN_LOG_FILE_MAX_SIZE ]]; then
+					log "Reducing log data in ${MAIN_LOG_FILE}."
+					local temp_file=${TEMP_DIR}/tcpdump-${RANDOM}.tmp
+					local skip=$(( (size - (MAIN_LOG_FILE_MAX_SIZE - MAIN_LOG_FILE_ALLOWANCE)) / DD_BLOCK_SIZE ))
 
-				dd "bs=${DD_BLOCK_SIZE}" "skip=${skip}" "if=${MAIN_LOG_FILE}" "of=${temp_file}" && \
-					cat "${temp_file}" > "${MAIN_LOG_FILE}" && \
-						rm -f -- "${temp_file}"
+					dd "bs=${DD_BLOCK_SIZE}" "skip=${skip}" "if=${MAIN_LOG_FILE}" "of=${temp_file}" && \
+						cat "${temp_file}" > "${MAIN_LOG_FILE}" && \
+							rm -f -- "${temp_file}"
 
-				if [[ $? -eq 0 ]]; then
-					log "Done."
-				else
-					log_error "Something failed."
+					if [[ $? -eq 0 ]]; then
+						log "Done."
+					else
+						log_error "Something failed."
+					fi
+				fi
+			else
+				if [[ ${unable_to_get_file_size_logged} == false ]]; then
+					log_stderr "Unable to get file size of '${MAIN_LOG_FILE}'."
+					unable_to_get_file_size_logged=true
 				fi
 			fi
 		fi
