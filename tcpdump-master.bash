@@ -181,10 +181,7 @@ if [[ $(type -t sleep) != builtin ]]; then
 					sleep "$1"
 				fi
 			elif type -P sleep >/dev/null; then
-				function sleep {
-					command sleep "$1"
-				}
-
+				unset -f sleep
 				command sleep "$1"
 			else
 				log "Can't sleep."
