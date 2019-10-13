@@ -5,75 +5,51 @@
 # tcpdump-master
 #
 # The script is a tcpdump service starter and manager.  It can also
-# automatically delete files older than C days, and reduce the size of
+# automatically delete files older than C days and reduce the size of
 # the main log file if it's already larger than N bytes.
 #
-# The script was originally a solution for this thread in LQ:
+# The script was originally made as a solution for this thread in LQ:
 # https://www.linuxquestions.org/questions/linux-networking-3/rotating-capture-files-using-tcpdump-800385/
+#
+# Tcpdump right now already has file size limit and autodelete features
+# which make this script no longer necessary.
 #
 # I recommended running the script with Bash version 4.3 or newer to
 # prevent crashes related to race conditions in catching signals and
 # handling traps.
 #
-# Disclaimer: This tool comes with no warranty.
+# Make sure this script runs with correct system time.
 #
 # Author: konsolebox
-# Copyright Free / Public Domain
-# June 3, 2019
+# October 13, 2019
 
-# Copyright-related details:
+# "License"
 #
-# The author (konsolebox) explicitly disclaims copyright of this file in all
-# jurisdictions which recognize such a disclaimer.  In such jurisdictions,
-# this software is released into the Public Domain.
+# This software is free and unencumbered software released into
+# the public domain.
 #
-# In jurisdictions which do not recognize Public Domain property (e.g. Germany as of
-# 2010), this software is Copyright (c) 2007-2010 by Baptiste Lepilleur, and is
-# released under the terms of the MIT License (see below).
+# Anyone is free to copy, modify, publish, use, compile, sell, or
+# distribute this software, either in source code form or as a compiled
+# binary, for any purpose, commercial or non-commercial, and by any
+# means.
 #
-# In jurisdictions which recognize Public Domain property, the user of this
-# software may choose to accept it either as 1) Public Domain, 2) under the
-# conditions of the MIT License (see below), or 3) under the terms of dual
-# Public Domain/MIT License conditions described here, as they choose.
-#
-# The MIT License is about as close to Public Domain as a license can get, and is
-# described in clear, concise terms at:
-#
-#    http://en.wikipedia.org/wiki/MIT_License
-#
-# The full text of the MIT License follows:
-#
-# ========================================================================
-# Copyright (c) 2019 konsolebox
-#
-# Permission is hereby granted, free of charge, to any person
-# obtaining a copy of this software and associated documentation
-# files (the "Software"), to deal in the Software without
-# restriction, including without limitation the rights to use, copy,
-# modify, merge, publish, distribute, sublicense, and/or sell copies
-# of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Software.
+# In jurisdictions that recognize copyright laws, the author or authors
+# of this software dedicate any and all copyright interest in the
+# software to the public domain. We make this dedication for the benefit
+# of the public at large and to the detriment of our heirs and
+# successors. We intend this dedication to be an overt act of
+# relinquishment in perpetuity of all present and future rights to this
+# software under copyright law.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-# ========================================================================
-# (END LICENSE TEXT)
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
 #
-# The MIT license is compatible with both the GPL and commercial
-# software, affording one all of the rights of Public Domain with the
-# minor nuisance of being required to keep the above copyright notice
-# and license text in the source code. Note also that by accepting the
-# Public Domain "license" you can re-license your copy using whatever
-# license you like.
+# For more information, please refer to <http://unlicense.org/>
 
 # ----------------------------------------------------------------------
 
