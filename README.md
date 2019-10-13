@@ -48,6 +48,10 @@ Sends signals to process trees with style.
 The script also contains reusable functions for working with process
 trees.
 
+#### killtree-lite.bash
+
+A less poetic version of killtree.
+
 #### libfind.bash
 
 Finds library files by keywords or expressions in directories specified
@@ -73,6 +77,9 @@ The resulting file's path is reproduced based on its source.
 The script is a tcpdump service starter and manager.  It can also
 automatically delete files older than C days, and reduce the size of
 the main log file if it's already larger than N bytes.
+
+I wrote it back in 2010 for an LQ thread.  Right now tcpdump already has
+most of its features.
 
 #### uuidfstab.bash
 
