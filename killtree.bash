@@ -18,7 +18,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 21, 2018
+# March 16, 2021
 #
 # ------------------------------------------------------------------------------
 
@@ -201,12 +201,14 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2018-07-21
+VERSION=2021.03.16
 
 shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
 
 function show_help_info {
-	echo "Sends signals to process trees with style.
+	echo "killtree ${VERSION}
+
+Sends signals to process trees with style.
 
 Usage: killtree[.bash] [options] [--] [[pattern|pid][/'filter_opts']] ...
                [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]

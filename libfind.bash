@@ -14,11 +14,11 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 27, 2018
+# March 16, 2021
 
 # ----------------------------------------------------------------------
 
-VERSION='2018-05-27'
+VERSION=2021.03.16
 
 [[ $BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
@@ -52,7 +52,9 @@ declare -a LIB_PATHS_COMMON=(
 )
 
 function show_help_info {
-	echo "Finds library files based on expressions.
+	echo "libfind ${VERSION}
+
+Finds library files based on expressions.
 
 By default it searches for files in directories specified in
 /etc/ld.so.conf but it can be configured to use other directories
@@ -219,7 +221,7 @@ function main {
 			exit 1
 			;;
 		-V|--version)
-			echo "$VERSION" >&2
+			echo "${VERSION}" >&2
 			exit 1
 			;;
 		--)

@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 15, 2021
+# March 16, 2021
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2021-03-15
+VERSION=2021.03.16
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -59,7 +59,9 @@ function fail {
 }
 
 function show_help_info {
-	echo "Copies files along with their dependencies to a virtual root directory.
+	echo "rcopy ${VERSION}
+
+Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based from its source.
 
 Usage: $0 [options] -t directory source ...
