@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# April 30, 2016 (Last Updated 2018/07/21)
+# March 3, 2021
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2018-07-21'
+VERSION = '2021.03.16'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -591,7 +591,7 @@ def main
 
   parser.on_tail("-h", "--help", "Show this help info and exit.") do
     $stderr.puts "dnscrypt-proxy-multi #{VERSION}"
-    $stderr.puts "Runs multiple instances of dnscrypt-proxy."
+    $stderr.puts "Runs multiple instances of dnscrypt-proxy"
     $stderr.puts
     $stderr.puts "Usage: #{$0} [options] [-- [extra_dnscrypt_proxy_opts]]"
     $stderr.puts
