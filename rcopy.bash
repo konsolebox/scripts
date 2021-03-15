@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 28, 2018
+# March 15, 2021
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2018-05-28
+VERSION=2021-03-15
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -210,7 +210,7 @@ function process {
 }
 
 function main {
-	local file_args=()
+	local file_args=() __
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
