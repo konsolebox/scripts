@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 16, 2021
+# March 29, 2021
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2021.03.16
+VERSION=2021.03.29
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -181,10 +181,10 @@ function process {
 	for __; do
 		if [[ -L $__ ]]; then
 			process "$(readlink -m -- "$__")"
-		elif [[ -f $__ && -x $__ ]]; then
+		elif [[ -f $__ && -x $__ && $(file "$__") == *ELF*dynamic* ]]; then
 			deps=()
-			readarray -t deps < <(exec ldd "$__" | grep -Po '/\S+')
-			process "${deps[@]}"
+			readarray -t deps < <(exec ldd "$__" | grep -Eo '/\S+')
+			[[ ${#deps[@]} -gt 0 ]] && process "${deps[@]}"
 		fi
 
 		dest=${CONFIG_TARGET_ROOT}$__
