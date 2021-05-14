@@ -14,42 +14,22 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 16, 2021
+# May 14, 2021
 
 # ----------------------------------------------------------------------
 
-VERSION=2021.03.16
+VERSION=2021.05.14
 
-[[ $BASH_VERSINFO -ge 4 ]] || {
+[ -n "${BASH_VERSION}" ] && [[ BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
 	exit 1
 }
 
-shopt -s extglob
-shopt -so noglob
+set -f +o posix && shopt -s extglob || exit 1
 
 declare -A LD_CONF_HASH=()
-declare -a LIB_PATHS=()
-declare -a LIB_PATHS_COMMON=(
-	/usr/x86_64-pc-linux-gnu/lib64
-	/usr/x86_64-pc-linux-gnu/lib32
-	/usr/x86_64-pc-linux-gnu/libx32
-	/usr/x86_64-pc-linux-gnu/lib
-	/usr/i386-pc-linux-gnu/lib32
-	/usr/i386-pc-linux-gnu/lib
-	/usr/local/lib64
-	/usr/local/lib32
-	/usr/local/libx32
-	/usr/local/lib
-	/lib64
-	/lib32
-	/libx32
-	/lib
-	/usr/lib64
-	/usr/lib32
-	/usr/libx32
-	/usr/lib
-)
+declare LIB_PATHS=()
+declare LIB_PATHS_COMMON=(/{usr/{x86_64-pc-linux-gnu/,i386-pc-linux-gnu/,local/,},}lib{64,32,x32,})
 
 function show_help_info {
 	echo "libfind ${VERSION}
@@ -102,7 +82,7 @@ before them.
 Regex-based expression types rely on find's -regex so they match a whole
 pathname and not just a file's filename.
 
-When no expression type is specified, it defaults to glob patterns." >&2
+When no expression type is specified, it defaults to glob patterns."
 }
 
 function get_clean_path {
@@ -113,7 +93,7 @@ function get_clean_path {
 		set -- $1
 		;;
 	*)
-		set -- $PWD $1
+		set -- ${PWD} $1
 		;;
 	esac
 
@@ -142,8 +122,8 @@ function get_lib_paths {
 
 	local file=$1
 
-	if [[ -z ${LD_CONF_HASH[$file]} && -f $file && -r $file ]]; then
-		LD_CONF_HASH[$file]=.
+	if [[ -z ${LD_CONF_HASH[${file}]} && -f ${file} && -r ${file} ]]; then
+		LD_CONF_HASH[${file}]=.
 
 		while read -r __; do
 			case $__ in
@@ -159,7 +139,7 @@ function get_lib_paths {
 					if [[ $__ == /* ]]; then
 						get_clean_path "$__"
 					else
-						get_clean_path "$file/../$__"
+						get_clean_path "${file}/../$__"
 					fi
 
 					while read -r __; do
@@ -168,7 +148,7 @@ function get_lib_paths {
 				done
 				;;
 			esac
-		done < "$file"
+		done < "${file}"
 	fi
 }
 
@@ -183,11 +163,11 @@ function main {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-c)
-			[[ $use_or_add_common_paths == add ]] && fail "You can only specify one of -c and -C."
+			[[ ${use_or_add_common_paths} == add ]] && fail "Only one of -c and -C can be specified."
 			use_or_add_common_paths=use
 			;;
 		-C)
-			[[ $use_or_add_common_paths == use ]] && fail "You can only specify one of -c and -C."
+			[[ ${use_or_add_common_paths} == use ]] && fail "Only one of -c and -C can be specified."
 			use_or_add_common_paths=add
 			;;
 		--awk|--egrep|--emacs)
@@ -221,7 +201,7 @@ function main {
 			exit 1
 			;;
 		-V|--version)
-			echo "${VERSION}" >&2
+			echo "${VERSION}"
 			exit 1
 			;;
 		--)
@@ -239,23 +219,24 @@ function main {
 		shift
 	done
 
-	[[ ${#expressions[@]} -eq 0 ]] && fail "No expression was specified.  Run with --help to get usage info."
+	[[ ${#expressions[@]} -eq 0 ]] && \
+		fail "No expression was specified.  Run with --help to get usage info."
 
-	if [[ $mode == @(default|exact_pattern) ]]; then
+	if [[ ${mode} == @(default|exact_pattern) ]]; then
 		for __ in "${expressions[@]}"; do
 			if [[ $__ == */* ]]; then
-				fail "You can't include a forward-slash character (/) when matching against a filename." \
+				fail "Forward-slash (/) can't be included when matching against a filename." \
 						"Please run libfind with --help to see other search methods."
 			fi
 		done
 	fi
 
-	if [[ $use_or_add_common_paths == use ]]; then
+	if [[ ${use_or_add_common_paths} == use ]]; then
 		LIB_PATHS=("${LIB_PATHS_COMMON[@]}")
 	else
 		get_lib_paths /etc/ld.so.conf
 
-		if [[ $use_or_add_common_paths == add ]]; then
+		if [[ ${use_or_add_common_paths} == add ]]; then
 			LIB_PATHS+=("${LIB_PATHS_COMMON[@]}")
 		fi
 	fi
@@ -272,67 +253,67 @@ function main {
 
 	[[ ${#lib_paths_filtered[@]} -eq 0 ]] && return 1
 
-	local name_opt='-iname' path_opt='-ipath' regex_opt='-iregex'
+	local name_opt="-iname" path_opt="-ipath" regex_opt="-iregex"
 
-	if [[ $case_sensitive == true ]]; then
-		name_opt='-name'
-		regex_opt='-regex'
-		path_opt='-path'
+	if [[ ${case_sensitive} == true ]]; then
+		name_opt="-name"
+		regex_opt="-regex"
+		path_opt="-path"
 	fi
 
-	local expr_opt=$name_opt regex_type_args=() add_wildcards=true
+	local expr_opt=${name_opt} regex_type_args=() add_wildcards=true
 
-	case $mode in
+	case ${mode} in
 	awk)
-		expr_opt=$regex_opt
+		expr_opt=${regex_opt}
 		regex_type_args=(-regextype posix-awk)
 		add_wildcards=false
 		;;
 	basic)
-		expr_opt=$regex_opt
+		expr_opt=${regex_opt}
 		regex_type_args=(-regextype posix-basic)
 		add_wildcards=false
 		;;
 	emacs)
-		expr_opt=$regex_opt
+		expr_opt=${regex_opt}
 		regex_type_args=(-regextype emacs)
 		add_wildcards=false
 		;;
 	egrep)
-		expr_opt=$regex_opt
+		expr_opt=${regex_opt}
 		regex_type_args=(-regextype posix-egrep)
 		add_wildcards=false
 		;;
 	extended)
-		expr_opt=$regex_opt
+		expr_opt=${regex_opt}
 		regex_type_args=(-regextype posix-extended)
 		add_wildcards=false
 		;;
 	exact_pattern)
-		expr_opt=$name_opt
+		expr_opt=${name_opt}
 		regex_type_args=()
 		add_wildcards=false
 		;;
 	exact_path_pattern)
-		expr_opt=$path_opt
+		expr_opt=${path_opt}
 		regex_type_args=()
 		add_wildcards=false
 		;;
 	path)
-		expr_opt=$path_opt
+		expr_opt=${path_opt}
 		regex_type_args=()
 		;;
 	esac
 
 	local expr_args=()
 
-	if [[ $add_wildcards == true ]]; then
+	if [[ ${add_wildcards} == true ]]; then
 		for __ in "${expressions[@]}"; do
-			expr_args+=("$expr_opt" "*$__*")
+			expr_args+=("${expr_opt}" "*$__*")
 		done
 	else
 		for __ in "${expressions[@]}"; do
-			expr_args+=("$expr_opt" "$__")
+			expr_args+=("${expr_opt}" "$__")
 		done
 	fi
 
