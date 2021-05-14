@@ -1,24 +1,29 @@
 #!/bin/bash
 
+[ -n "${BASH_VERSION}" ] || {
+	echo "This script requires Bash."
+	exit 1
+}
+
+set -f +o posix && shopt -s extglob || exit 1
+
 # ------------------------------------------------------------------------------
 #
 # killtree
 #
 # Sends signals to process trees with style.
 #
+# It uses pgrep to find processes.
+#
 # Usage: killtree[.bash] [options] [--] [[pattern|pid][/'filter_opts']] ...
 #                [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
 #                [// [filter_opts] [--] [[pattern|pid][/'filter_opts']] ...]
-#
-# This script uses pgrep.
-#
-# It contains reusable functions.
 #
 # Disclaimer: This tool comes with no warranty.
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 16, 2021
+# May 14, 2021
 #
 # ------------------------------------------------------------------------------
 
@@ -180,11 +185,11 @@ FILTER_SESSION=()
 FILTER_TERMINAL=()
 FILTER_UIDS=()
 HAS_GEN_FILTERS=()
+IFS=$' \t\r\n'
 INITIAL_TARGET_PIDS=()
 LAST_PRI_TARGET_ID=0
 LAST_SEC_TARGET_ID=0
 LAST_TER_TARGET_ID=0
-PGREP_OPTS=()
 PRETEND=false
 SEC_FILTER_ARGS=()
 SEC_FILTER_ID=0
@@ -201,9 +206,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2021.03.16
-
-shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
+VERSION=2021.05.14
 
 function show_help_info {
 	echo "killtree ${VERSION}
@@ -374,7 +377,6 @@ function fail {
 
 function check_if_valid_name_or_id_list_arg {
 	local opt=$1 arg=$2 has_entry=false IFS=, __
-
 	[[ -z ${arg} ]] && fail "Invalid empty parameter for '${opt}'."
 
 	for __ in ${arg}; do
@@ -388,14 +390,12 @@ function check_if_valid_name_or_id_list_arg {
 
 	[[ ${has_entry} == false ]] && \
 		fail "Specified list argument to '${opt}' is empty: ${arg}"
-
 	[[ ${arg} == @(,*|*,,*|*,) ]] && \
 		log_warning "Ignoring empty elements in list argument to '${opt}': ${arg}"
 }
 
 function check_if_valid_id_list_arg {
 	local opt=$1 arg=$2 has_entry=false IFS=, __
-
 	[[ -z ${arg} ]] && fail "Invalid empty parameter for '${opt}'."
 
 	for __ in ${arg}; do
@@ -409,7 +409,6 @@ function check_if_valid_id_list_arg {
 
 	[[ ${has_entry} == false ]] && \
 		fail "Specified list argument to '${opt}' is empty: ${arg}"
-
 	[[ ${arg} == @(,*|*,,*|*,) ]] && \
 		log_warning "Ignoring empty elements in list argument to '${opt}': ${arg}"
 }
@@ -429,7 +428,6 @@ function check_if_valid_nslist_arg {
 
 	[[ ${has_entry} == false ]] && \
 		fail "Specified list argument to '${opt}' is empty: ${arg}"
-
 	[[ ${arg} == @(,*|*,,*|*,) ]] && \
 		log_warning "Ignoring empty elements in list argument to '${opt}': ${arg}"
 }
@@ -445,7 +443,7 @@ function exclude_self {
 	__A0=()
 	local __
 
-	for __ do
+	for __; do
 		[[ $__ != "${SELF}" ]] && __A0+=("$__") || warn_excluding_self
 	done
 }
@@ -532,7 +530,7 @@ function parse_filter_opts {
 }
 
 function parse_target_expr {
-	local target opts has_opts=false
+	local target opts
 
 	if [[ ${1//[!/]} == *//* ]]; then
 		fail "Unexpected use of too many '/' in argument: $1"
@@ -558,7 +556,7 @@ function get_merged_list {
 	local var=$1 a i r temp= IFS=,
 	shift
 
-	for i do
+	for i; do
 		r=${var}[$i]
 		temp+=,${!r}
 	done
@@ -576,7 +574,7 @@ function get_merged_list {
 function is_effectively_true {
 	local effective __
 
-	for __ do
+	for __; do
 		[[ -n $__ ]] && effective=$__
 	done
 
@@ -641,8 +639,9 @@ function collect_initial_targets {
 			else
 				target_pids+=("${target}")
 			fi
-		elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt 0 || LAST_PRI_TARGET_ID -eq 0)) ]]; then
-			IFS=$'\n' read -ra pids -d '' < <(exec pgrep "${pgrep_opts[@]}" -- "${target[@]}")
+		elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt 0 || \
+				LAST_PRI_TARGET_ID -eq 0)) ]]; then
+			pids=($(pgrep "${pgrep_opts[@]}" -- "${target[@]}"))
 			exclude_self "${pids[@]}"
 
 			if [[ (${#__A0[@]} -eq 0 && ${quiet} == false) || ${VERBOSE} == true ]]; then
@@ -656,22 +655,22 @@ function collect_initial_targets {
 			fi
 
 			if [[ ${#__A0[@]} -eq 0 ]]; then
-				log_info "No process matched using ${phrase}."
+				log_info "No targets matched using ${phrase}."
 			else
-				[[ ${VERBOSE} == true ]] && log_verbose "Processes matching ${phrase}: ${__A0[*]}"
+				[[ ${VERBOSE} == true ]] && log_verbose "Targets matching ${phrase}: ${__A0[*]}"
 				target_pids+=("${__A0[@]}")
 			fi
 		fi
 	done
 
 	if [[ ${#target_pids[@]} -eq 0 ]]; then
-		log_info 'No target matched expressions.'
+		log_info 'No targets matched expressions.'
 		return 1
 	fi
 
 	for id in "${target_pids[@]}"; do
 		if [[ -z ${reg[id]} ]]; then
-			INITIAL_TARGET_PIDS+=("$id")
+			INITIAL_TARGET_PIDS+=("${id}")
 			reg[id]=.
 		fi
 	done
@@ -698,7 +697,8 @@ function prepare_secondary_filter {
 					SEC_FILTER_PIDS[SEC_FILTER_ID++]=${target}
 					SEC_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt SEC_GLOBAL_ID || LAST_SEC_TARGET_ID -eq 0)) ]]; then
+			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt SEC_GLOBAL_ID || \
+					LAST_SEC_TARGET_ID -eq 0)) ]]; then
 				args=("${pgrep_opts[@]}")
 				[[ ${#target[@]} -gt 0 ]] && args+=(-- "${target[@]}")
 				SEC_FILTER_INDICES[SEC_FILTER_ID]=${#SEC_FILTER_ARGS[@]}
@@ -709,14 +709,14 @@ function prepare_secondary_filter {
 
 		if [[ ${#SEC_FILTER_INDICES[@]} -eq 1 ]]; then
 			function list_children {
-				IFS=$'\n' read -ra CHILDREN < <(exec pgrep -P "$1" "${args[@]}")
+				CHILDREN=($(pgrep -P "$1"))
 			}
 		elif [[ ${#SEC_FILTER_INDICES[@]} -gt 1 ]]; then
 			function do_secondary_filter {
 				__A0=()
 
 				if [[ $# -gt 0 ]]; then
-					local pids=() args IFS=$'\n' pid i
+					local pids=() args pid i
 
 					for i in "${!SEC_FILTER_INDICES[@]}"; do
 						args=("${SEC_FILTER_ARGS[@]:${SEC_FILTER_INDICES[i]}:${SEC_FILTER_LENGTHS[i]}}")
@@ -732,14 +732,13 @@ function prepare_secondary_filter {
 						fi
 					done
 
-					for i do
+					for i; do
 						[[ -n ${pids[i]} ]] && __A0+=("$i")
 					done
 				fi
 			}
 
 			function list_children {
-				local IFS=$'\n'
 				do_secondary_filter $(pgrep -P "$1")
 				CHILDREN=("${__A0[@]}")
 			}
@@ -766,7 +765,8 @@ function prepare_tertiary_filter {
 					TER_FILTER_PIDS[TER_FILTER_ID++]=${target}
 					TER_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt TER_GLOBAL_ID || LAST_TER_TARGET_ID -eq 0)) ]]; then
+			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt TER_GLOBAL_ID || \
+					LAST_TER_TARGET_ID -eq 0)) ]]; then
 				args=("${pgrep_opts[@]}")
 				[[ ${#target[@]} -gt 0 ]] && args+=(-- "${target[@]}")
 				TER_FILTER_INDICES[TER_FILTER_ID]=${#TER_FILTER_ARGS[@]}
@@ -781,7 +781,7 @@ function prepare_tertiary_filter {
 			__A0=()
 
 			if [[ $# -gt 0 ]]; then
-				local pids=() args IFS=$'\n' pid i
+				local pids=() args pid i
 
 				for i in "${!TER_FILTER_INDICES[@]}"; do
 					args=("${TER_FILTER_ARGS[@]:${TER_FILTER_INDICES[i]}:${TER_FILTER_LENGTHS[i]}}")
@@ -797,7 +797,7 @@ function prepare_tertiary_filter {
 					fi
 				done
 
-				for i do
+				for i; do
 					[[ -n ${pids[i]} ]] && __A0+=("$i")
 				done
 			fi
@@ -854,7 +854,7 @@ function ask_send_sig {
 	else
 		local i=0 l __
 
-		for __ do
+		for __; do
 			i=${#__}
 			[[ i -gt l ]] && l=$i
 		done
@@ -862,7 +862,7 @@ function ask_send_sig {
 		echo "Send ${signal} to these processes? " >&2
 		printf '%*s %s\n' "$l" PID CMD >&2
 
-		for __ do
+		for __; do
 			get_process_cmd "$__"
 			printf '%*s %s\n' "$l" "$__" "${CMD}" >&2
 		done
@@ -914,7 +914,8 @@ function setup_kill_function {
 				do_tertiary_filter "${__A0[@]}"
 
 				for __ in "${__A0[@]}"; do
-					ask_send_sig "$2" "$__" && [[ ${PRETEND} != true ]] && builtin kill -s "$2" "$__"
+					ask_send_sig "$2" "$__" && [[ ${PRETEND} != true ]] && \
+						builtin kill -s "$2" "$__"
 				done
 			}
 		elif [[ ${ASK_ONCE} == true ]]; then
@@ -1005,10 +1006,8 @@ function parse_secondary_args {
 }
 
 function main {
-	local exact_match=false function_suffix= euids= groups= ignore_case=false \
-			ignore_sighup=false list_ref=TREE[@] ns= nslist= pgroups= \
-			quiet=false signal=SIGTERM strategy=simultaneous target_exprs=() \
-			target_class=tree uids= __
+	local function_suffix= ignore_sighup=false list_ref=TREE[@] quiet=false signal=SIGTERM \
+			strategy=simultaneous target_class=tree __
 
 	while [[ $# -gt 0 ]]; do
 		if [[ $1 == // ]]; then
@@ -1116,8 +1115,10 @@ function main {
 	done
 
 	if [[ ${ASK_ONCE} == true ]]; then
-		[[ ${ASK} != true ]] || fail "Options '--ask' and '--ask-once' can't be used at the same time."
-		[[ ${strategy} == @(simultaneous|unify) ]] || fail "Option '--ask-once' can only be used in \"simultaneous\" or \"unify\" strategy mode."
+		[[ ${ASK} != true ]] || \
+			fail "Options '--ask' and '--ask-once' can't be used at the same time."
+		[[ ${strategy} == @(simultaneous|unify) ]] || \
+			fail "Option '--ask-once' can only be used in 'simultaneous' or 'unify' strategy mode."
 	fi
 
 	if [[ (${ASK} == true || ${ASK_ONCE} == true) && ! -d /proc/$$ ]]; then
@@ -1138,7 +1139,7 @@ function main {
 
 	[[ ${ignore_sighup} == true ]] && trap : SIGHUP
 	collect_initial_targets || return 1
-	log_verbose "Parent target_exprs: ${INITIAL_TARGET_PIDS[@]}"
+	log_verbose "Initial targets: ${INITIAL_TARGET_PIDS[@]}"
 	log_verbose "Self: ${SELF}"
 	prepare_secondary_filter
 	prepare_tertiary_filter
