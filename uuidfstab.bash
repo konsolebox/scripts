@@ -13,31 +13,36 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 27, 2018
+# May 14, 2021
 
 # ----------------------------------------------------------------------
 
-VERSION=2018-05-27
+[ -n "${BASH_VERSION}" ] || {
+	echo "Bash is needed to run this script." >&2
+	exit 1
+}
+
+set -f +o posix || exit 1
+
+VERSION=2021.05.14
 
 function log {
 	printf '%s\n' "$@" >&2
 }
 
 function show_usage_and_exit {
-	log "Converts device paths in a fstab file to UUID forms.
+	log "uuidfstab ${VERSION}
+Converts device paths in a fstab file to UUID forms.
 
-Usage: $0 [--] fstab_file [output]
+Usage: $0 [--] fstab_file [output_file]
        $0 <-h | --help | -V | --version>
 
 Notes:
-1) If output is not specified, uuidfstab would write changes to a temporary
-   file and then save it to fstab_file instead.
-2) Specifying '-' for the output specifies /dev/stdout.
-3) All messages coming from uuidfstab are sent to file descriptor 2 or
-   /dev/stderr.
+1) Results are saved back to the fstab_file if no output is specified.
+2) If - is specified as output, results are sent to stdout instead.
+3) All other messages are sent to stderr.
 
 Disclaimer: This tool comes with no warranty."
-
 	exit 1
 }
 
@@ -47,11 +52,12 @@ function fail {
 }
 
 function main {
-	local __
+	local non_opt_args
 
-	for __; do
-		case $__ in
+	while [[ $# -gt 0 ]]; do
+		case $1 in
 		--)
+			non_opt_args=("${non_opt_args[@]}" "${@:2}")
 			break
 			;;
 		-V|--version)
@@ -61,55 +67,68 @@ function main {
 		-h|--help)
 			show_usage_and_exit
 			;;
+		-)
+			non_opt_args=("${non_opt_args[@]}" -)
+			;;
+		-*)
+			log "Invalid option: $1"
+			;;
+		*)
+			non_opt_args=("${non_opt_args[@]}" "$1")
+			;;
 		esac
+
+		shift
 	done
 
-	if [[ $# -ne 1 && $# -ne 2 ]]; then
-		echo "Invalid number of arguments." >&2
-		show_usage_and_exit
-	fi
+	set -- "${non_opt_args[@]}"
+	[[ $# -eq 0 ]] && fail "No argument specified."
+	[[ $# -gt 2 ]] && fail "Too many arguments specified."
 
-	local fstab_file=$1 specified_output=$2 temp_file output_file
+	local fstab_file=$1 output_file=("${@:2}") actual_output_file=
+	[[ -e ${fstab_file} ]] || fail "File doesn't exist: ${fstab_file}"
+	[[ -f ${fstab_file} ]] || fail "Not a regular file: ${fstab_file}"
+	exec 3< "${fstab_file}" || fail "Failed to open '${fstab_file}' for reading."
 
-	if [[ -z ${specified_output} ]]; then
-		temp_file=$(mktemp)
-		[[ -z ${temp_file} || ! -f ${temp_file} ]] && fail "Unable to create temporary file."
-		[[ -w ${temp_file} ]] || fail "Temporary file can't be written into."
-		output_file=${temp_file}
-	elif [[ ${specified_output} == - ]]; then
-		specified_output=/dev/stdout
-		output_file=/dev/stdout
+	if [[ -z ${output_file+.} ]]; then
+		log "Processing '${fstab_file}' and saving results to it."
+	elif [[ ${output_file} == - ]]; then
+		log "Processing '${fstab_file}' and writing results to stdout."
 	else
-		: >> "${specified_output}" || fail "Unable to create file or write to file: ${specified_output}"
-		output_file=${specified_output}
+		[[ -e ${output_file} && ! -f ${output_file} ]] && fail "Not a regular file: ${output_file}"
+		log "Processing '${fstab_file}' and writing results to '${output_file}'."
 	fi
 
-	shopt -s extglob
-	[[ -f ${fstab_file} && -r ${fstab_file} ]] || fail "Fstab file ${fstab_file} does not exist or is not readable."
-	log "Processing ${fstab_file} and writing output to ${output_file}."
-	local line device printed id
+	exec 3< "${fstab_file}" || fail "Failed to open '${fstab_file}' for reading."
+	local line device output
 
-	while read -r line; do
-		device=${line%%+([[:space:]])*}
-		printed=false
+	while IFS= read -ru3 line; do
+		device=(${line})
 
-		if [[ ${device} == /dev/* ]]; then
-			id=$(blkid "${device}" -s UUID -o value)
+		if [[ $1 == /dev/* ]]; then
+			id=$(blkid "${device}" -s UUID -o value) || \
+				fail "Error occurred while trying to get UUID of '${device}'."
 
 			if [[ -n ${id} ]]; then
-				echo "# ${device} = ${id}" >&3
-				echo "${line/${device}/UUID=${id}}" >&3
-				printed=true
+				output[${#output[@]}]="# ${device} = ${id}"
+				output[${#output[@]}]="${line/${device}/UUID=${id}}"
+				continue
 			fi
 		fi
 
-		[[ ${printed} = false ]] && echo "${line}" >&3
-	done < "${fstab_file}" 3> "${output_file}" || fail "Failed."
+		output[${#output[@]}]=${line}
+	done
 
-	if [[ -z ${specified_output} ]]; then
-		log "Saving output from ${temp_file} to ${fstab_file}."
-		cat "${temp_file}" > "${fstab_file}" || fail "Unable to save modifications to fstab file."
-		rm "${temp_file}" || log "Warning: Failed to delete temporary file: ${temp_file}" >&2
+	exec 3<&- || fail "Failed to close '${fstab_file}'."
+
+	if [[ -z ${output_file+.} ]]; then
+		printf '%s\n' "${output[@]}" >"${fstab_file}" || \
+			fail "Failed to write data to '${fstab_file}'."
+	elif [[ ${output_file} == - ]]; then
+		printf '%s\n' "${output[@]}"
+	else
+		printf '%s\n' "${output[@]}" >"${output_file}" || \
+			fail "Failed to write data to '${output_file}'."
 	fi
 
 	log "Done."
