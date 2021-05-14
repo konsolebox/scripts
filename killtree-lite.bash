@@ -4,15 +4,15 @@
 #
 # killtree-lite
 #
-# A simpler version of killtree.
+# A less poetic version of killtree
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 14, 2018
+# May 14, 2021
 #
 # ------------------------------------------------------------
 
-shopt -uo posix && shopt -so noglob && shopt -s extglob || exit 1
+set -f +o posix && shopt -s extglob || exit 1
 
 # killtree (pid, signal = 'SIGTERM')
 #
