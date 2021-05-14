@@ -15,14 +15,14 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 29, 2021
+# May 14, 2021
 
 # ----------------------------------------------------------
 
 # TODO: Support symbolic-link path nodes containing absolute paths,
 #       by converting them to relative forms.
 
-[[ ${BASH_VERSINFO} -ge 4 ]] || {
+[ -n "${BASH_VERSION}" ] && [[ BASH_VERSINFO -ge 4 ]] || {
 	echo "Bash version 4.0 or newer is needed to run this script." >&2
 	exit 1
 }
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2021.03.29
+VERSION=2021.05.14
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -116,15 +116,20 @@ function get_clean_path {
 	__="/${t[*]}"
 }
 
-function cp {
-	local messages r
-	messages=$(exec cp "$@" 2>&1)
+function call {
+	local messages lines r __
+
+	if [[ ${CONFIG_VERBOSE} == true ]]; then
+		printf -v __ ' %q' "$@"
+		log_verbose "Command: ${__:1}"
+	fi
+
+	messages=$("$@" 2>&1)
 	r=$?
 
 	if [[ -n ${messages} ]]; then
-		local lines=()
 		readarray -t lines <<< "${messages}"
-		printf 'rcopy: cp: %s\n' "${lines[@]}"
+		printf "rcopy: Message: $1: %s\n" "${lines[@]}"
 	fi
 
 	return "$r"
@@ -157,15 +162,15 @@ function copy_dir_structure {
 			fi
 
 			log_message "Copying symbolic link \"${current_source}\" (-> \"${link_target}\") to \"${dest_dir}${current_source}\""
-			log_verbose "Command: cp ${CONFIG_CP_OPTS[*]} -d -- \"${current_source}\" \"${dest_dir}${current_source}\""
-			cp "${CONFIG_CP_OPTS[@]}" -d -- "${current_source}" "${dest_dir}${current_source}" || fail "Copy failed."
+			call cp "${CONFIG_CP_OPTS[@]}" -d -- "${current_source}" "${dest_dir}${current_source}" || fail "Copy failed."
 
 			get_clean_path "${current_source}/../${link_target}"
 			copy_dir_structure "$__" "${dest_dir}"
 		elif [[ -d ${current_source} ]]; then
 			if [[ ! -e ${dest_dir}${current_source} ]]; then
 				log_message "Creating directory \"${dest_dir}${current_source}\"."
-				mkdir -- "${dest_dir}${current_source}" || fail "Unable to create directory \"${dest_dir}${current_source}\"."
+				call mkdir -- "${dest_dir}${current_source}" || \
+					fail "Unable to create directory \"${dest_dir}${current_source}\"."
 			elif [[ ! -d ${dest_dir}${current_source} ]]; then
 				fail "\"${dest_dir}${current_source}\" already exists but is not a directory."
 			fi
@@ -199,10 +204,10 @@ function process {
 		if [[ -z ${PROCESSED[$__]} ]]; then
 			if [[ ${CONFIG_HARD_LINK_MODE} == true ]]; then
 				log_message "Hard-linking \"$__\" to \"${dest_dir}/\"."
-				cp -a -H -- "$__" "${dest_dir}/"
+				call cp "${CONFIG_CP_OPTS[@]}" -a -H -- "$__" "${dest_dir}/"
 			else
 				log_message "Copying \"$__\" to \"${dest_dir}/\"."
-				cp -a -- "$__" "${dest_dir}/"
+				call cp "${CONFIG_CP_OPTS[@]}" -a -- "$__" "${dest_dir}/"
 			fi
 
 			[[ $? -eq 0 ]] || fail "Copy failed."
