@@ -8,7 +8,7 @@
 #
 # Usage: map-partitions[.bash] [options] target [name]
 #
-# Copyright (c) 2019 konsolebox
+# Copyright (c) 2021 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,26 +30,31 @@
 
 # ------------------------------------------------------------------------------
 
-VERSION=2019-05-25
+[ -n "${BASH_VERSION}" ] || {
+	echo "This script requires bash." >&2
+	exit 1
+}
 
 shopt -s extglob || exit 1
+
+VERSION=2021.05.14
 
 function show_warnings {
 	echo "WARNING: This tool does not guarantee functionality.
 WARNING: It has only been tested with MSDOS partitions.
-WARNING: Read its code for details on the license regarding its usage." >&2
+WARNING: Read its code for details on the license regarding its usage."
 }
 
 function show_usage_and_exit {
-	echo "Maps partitions in a block device to logical devices using dmsetup and sfdisk
+	echo "map-partitions ${VERSION}
+Maps partitions in a block device to logical devices using dmsetup and sfdisk
 Usage: $0 [options] target [name]
 
 Options:
   -h, --help           Show this help info.
   -H, --hide-warnings  Hide warnings.
   -V, --version        Show version.
-" >&2
-
+"
 	show_warnings
 	exit 1
 }
@@ -100,7 +105,7 @@ function main {
 
 	set -- "${args[@]}"
 	[[ $# -eq 1 || $# -eq 2 ]] || show_usage_and_exit
-	[[ ${hide_warnings} == true ]] || show_warnings
+	[[ ${hide_warnings} == true ]] || show_warnings >&2
 	target=$1 name=${2-${1##*/}} i=1
 
 	while IFS=' :,=' read -ru 4 dev start_key start size_key size id_key id; do
