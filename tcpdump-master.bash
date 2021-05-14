@@ -21,7 +21,7 @@
 # Make sure this script runs with correct system time.
 #
 # Author: konsolebox
-# October 13, 2019
+# May 14, 2021
 
 # "License"
 #
@@ -60,44 +60,84 @@ fi
 
 shopt -s extglob
 
-# Configuration variables
+#
+# CONFIGURABLE VARIABLES
+#
 
-LOG_DIR='/var/log/tcpdump'
-LOG_PREFIX='* '  ## Prefix string added to the messages in main log file so the messages coming from
-                 ## this script and not from tcpdump itself are easily recognized.  Feel free to
-                 ## customize.
+LOG_DIR="/var/log/tcpdump"
 
-MAIN_LOG_FILE='main.log'                        ## ${LOG_DIR}/ is prepended to this if it's in
-                                                ## basename form.
-MAIN_LOG_FILE_MAX_SIZE=$(( 20 * 1024 * 1024 ))  ## Bytes.  File gets truncated to this size.
-MAIN_LOG_FILE_ALLOWANCE=$(( 1 * 1024 * 1024 ))  ## Bytes.  It's an extra space given to the file so
-                                                ##         it can add more content before reaching
-                                                ##         max size again.
-MAIN_LOG_CHECK_INTERVALS=300                    ## Seconds.  Recommended: >= 300
+# Prefix string added to the messages in main log file so the messages coming from
+# this script and not from tcpdump itself are easily recognized.  Feel free to
+# customize.
+#
+LOG_PREFIX="* "
 
-TCPDUMP='/usr/sbin/tcpdump'             ## Absolute path to tcpdump must be specified.
-TCPDUMP_ARGS=(-C 1)                     ## Add extra tcpdump arguments here.
-                                        ## E.g. TCPDUMP_ARGS=(-C 1 -i ens33)
-TCPDUMP_CAPTURE_FILE_PREFIX='capture-'
-TCPDUMP_CAPTURE_FILE_SUFFIX=''
-TCPDUMP_CHECK_INTERVALS=60              ## Seconds
+# ${LOG_DIR}/ is prepended to this if it's in
+# basename form.
+#
+MAIN_LOG_FILE="main.log"
 
-DAYS_OLD=14        ## Days
-DD_BLOCK_SIZE=512  ## Bytes
-TEMP_DIR='/var/tmp'
+# Maximum size of main log file in bytes.  File gets truncated to this size.
+#
+MAIN_LOG_FILE_MAX_SIZE=$(( 20 * 1024 * 1024 ))
 
-STAT='/usr/bin/stat'  ## Location of the stat executable.
-                      ## It's not needed if the 'get_file_size' function is already customized to
-                      ## use another executable or method for getting file size.
+# The extra space given to the main log file so it can add more content before
+# reaching max size again.
+#
+MAIN_LOG_FILE_ALLOWANCE=$(( 1 * 1024 * 1024 ))
 
-# Other runtime variables
+# Check interval in seconds.  Recommended is at least 300.
+#
+MAIN_LOG_CHECK_INTERVALS=300
+
+# Absolute path to tcpdump binary
+#
+TCPDUMP="/usr/sbin/tcpdump"
+
+# Extra tcpdump arguments
+# E.g. TCPDUMP_ARGS=(-C 1 -i ens33)
+#
+TCPDUMP_ARGS=(-C 1)
+
+# Capture filename prefix and suffix
+#
+TCPDUMP_CAPTURE_FILE_PREFIX="capture-"
+TCPDUMP_CAPTURE_FILE_SUFFIX=
+
+# Tcpdump check intervals in seconds
+#
+TCPDUMP_CHECK_INTERVALS=60
+
+# Age of files in days to be considered old and subject for deletion
+#
+DAYS_OLD=$(( 7 * 2 ))
+
+# Block size specified when running 'dd'
+#
+DD_BLOCK_SIZE=512
+
+# Temporary directory to use when reducing log data
+#
+TEMP_DIR="/var/tmp"
+
+# Location of the 'stat' binary.
+# It's not needed if the 'get_file_size' function is already customized to
+# use another executable or method for getting file size.
+#
+STAT="/usr/bin/stat"  
+
+#
+# OTHER VARIABLES
+#
 
 CURRENT_DATE=
 QUIT=false
 SLEEP_FD=
 TCPDUMP_PID=0
 
-# Functions
+#
+# FUNCTIONS
+#
 
 if [[ BASH_VERSINFO -ge 5 || (BASH_VERSINFO -eq 4 && BASH_VERSINFO[1] -ge 2) ]]; then
 	function get_date {
@@ -375,6 +415,8 @@ function main {
 	log_divider
 }
 
-# Start.
+#
+# START
+#
 
 main
