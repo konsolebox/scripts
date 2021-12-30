@@ -67,6 +67,10 @@ Searches for manual pages based on `$MANPATH`.
 This tool maps partitions in a block device to logical devices using
 dmsetup and sfdisk.
 
+#### rake-completion.bash
+
+A completion script for rake.
+
 #### rcopy.bash
 
 Copies files along with their dependencies to a virtual root directory.
