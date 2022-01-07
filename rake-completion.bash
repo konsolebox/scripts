@@ -1,6 +1,6 @@
 # rake-completion.bash
 #
-# Copyright (c) 2021 konsolebox
+# Copyright (c) 2022 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the “Software”), to deal
@@ -21,8 +21,11 @@
 # SOFTWARE.
 
 if [[ BASH_VERSINFO -ge 5 ]]; then
-	declare -gA _RAKE_COMP_CACHE=()
+	declare -gA _RAKE_COMP_OPT_CACHE=()
+	declare -gA _RAKE_COMP_TASK_CACHE=()
+	declare -gA _RAKE_COMP_TASK_CACHE_TS=()
 	_RAKE_COMP_USE_STATIC_OPTS=${_RAKE_COMP_USE_STATIC_OPTS-false}
+	_RAKE_COMP_CACHE_TASKS=${_RAKE_COMP_CACHE_TASKS-true}
 	_RAKE_PATH=
 
 	if false; then
@@ -36,7 +39,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 			# From rake 13.0.6
 			__="-A -B -C -D -E -G -H -I -N -P -R -T -V -W -X -e -f -g -h -j -m -n -p -q -r -s -t -v --all --backtrace --build-all --comments --describe --directory --dry-run --execute --execute-continue --execute-print --help --jobs --job-stats --libdir --multitask --nosearch --nosystem --no-deprecation-warnings --no-search --no-system --prereqs --quiet --rakefile --rakelib --rakelibdir --require --rules --silent --suppress-backtrace --system --tasks --trace --verbose --version --where"
 		else
-			__=${_RAKE_COMP_CACHE["all_opts|${_RAKE_PATH}"]-}
+			__=${_RAKE_COMP_OPT_CACHE["all_opts|${_RAKE_PATH}"]-}
 
 			if [[ -z $__ ]]; then
 				__=$(
@@ -56,7 +59,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 					'
 				) || return 1
 
-				_RAKE_COMP_CACHE["all_opts|${_RAKE_PATH}"]=$__
+				_RAKE_COMP_OPT_CACHE["all_opts|${_RAKE_PATH}"]=$__
 			fi
 		fi
 
@@ -68,7 +71,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 			# From rake 13.0.6
 			__="--backtrace|--job-stats|--suppress-backtrace|-C|--directory|-D|--describe|-e|--execute|-E|--execute-continue|-f|--rakefile|-I|--libdir|-j|--jobs|-p|--execute-print|-r|--require|-R|--rakelibdir|-t|--trace|-T|--tasks|-W|--where"
 		else
-			__=${_RAKE_COMP_CACHE["opts_with_arg_expr|${_RAKE_PATH}"]-}
+			__=${_RAKE_COMP_OPT_CACHE["opts_with_arg_expr|${_RAKE_PATH}"]-}
 
 			if [[ -z $__ ]]; then
 				__=$(
@@ -92,7 +95,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 				) || return 1
 
 				__=${__%'|'}
-				_RAKE_COMP_CACHE["opts_with_arg_expr|${_RAKE_PATH}"]=$__
+				_RAKE_COMP_OPT_CACHE["opts_with_arg_expr|${_RAKE_PATH}"]=$__
 			fi
 		fi
 
@@ -144,7 +147,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		[[ $__ && -f $__ ]]
 	}
 
-	function _rake_comp_default_rakefile_exists {
+	function _rake_comp_get_default_rakefile {
 		local IFS=/
 
 		if [[ $- == *f* ]]; then
@@ -156,10 +159,12 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		fi
 
 		while [[ $# -gt 0 ]]; do
-			[[ -e "$*/Rakefile" ]] && return 0
+			__="$*/Rakefile"
+			[[ -e $__ ]] && return 0
 			set -- "${@:1:$# - 1}"
 		done
 
+		__=
 		return 1
 	}
 
@@ -183,6 +188,25 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		[[ ${one_file_result} == true ]]
 	}
 
+	function rake_comp_get_tasks {
+		local ts
+
+		if [[ ${_RAKE_COMP_CACHE_TASKS} == true ]]; then
+			ts=$(date +%s -r "$1") || ts=
+			__=${_RAKE_COMP_TASK_CACHE[$1]-}
+			[[ $__ && ${ts} && ${_RAKE_COMP_TASK_CACHE_TS[$1]-} == ${ts} ]] && return 0
+		fi
+
+		__=$("${_RAKE_PATH}" -f "$1" --tasks 2>&1 | awk '$1 == "rake" && / # / { print $2 }')
+
+		if [[ $__ && ${_RAKE_COMP_CACHE_TASKS} == true && ${ts} ]]; then
+			_RAKE_COMP_TASK_CACHE[$1]=$__
+			_RAKE_COMP_TASK_CACHE_TS[$1]=${ts}
+		fi
+
+		[[ $__ ]]
+	}
+
 	function _rake_comp {
 		local dont_add_space=false partial opt i __
 		shopt -q extglob || return
@@ -191,13 +215,9 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		COMPREPLY=()
 
 		if [[ $2 != -* && ${3-} != @($__) ]] && ! _rake_comp_target_likely_specified; then
-			if _rake_comp_get_specified_rakefile; then
-				__=$("${_RAKE_PATH}" -f "$__" --tasks 2>&1 | \
-						awk '$1 == "rake" && / # / { print $2 }')
-				[[ $__ ]] && readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
-			elif _rake_comp_default_rakefile_exists; then
-				__=$("${_RAKE_PATH}" --tasks 2>&1 | awk '$1 == "rake" && / # / { print $2 }')
-				[[ $__ ]] && readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
+			if _rake_comp_get_specified_rakefile || _rake_comp_get_default_rakefile; then
+				rake_comp_get_tasks "$__" || return
+				readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
 			elif [[ ${#COMP_WORDS[@]} -eq 2 && -z $2 ]]; then
 				_rake_comp_get_all_opts || return
 				readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
