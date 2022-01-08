@@ -161,7 +161,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		while [[ $# -gt 0 ]]; do
 			for __ in rakefile Rakefile rakefile.rb Rakefile.rb; do
 				__="$*/$__"
-				[[ -e $__ ]] && return 0
+				[[ -f $__ ]] && return 0
 			done
 
 			set -- "${@:1:$# - 1}"
