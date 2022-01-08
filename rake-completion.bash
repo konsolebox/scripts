@@ -207,6 +207,16 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		[[ $__ ]]
 	}
 
+	function _rake_comp_past_double_dash {
+		local i
+
+		for (( i = 1; i < COMP_CWORD; ++i )); do
+			[[ ${COMP_WORDS[i]} == -- ]] && return 0
+		done
+
+		return 1
+	}
+
 	function _rake_comp {
 		local dont_add_space=false partial opt i __
 		shopt -q extglob || return
@@ -214,7 +224,9 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		_rake_comp_get_opts_with_arg_expr || return
 		COMPREPLY=()
 
-		if [[ $2 != -* && ${3-} != @($__) ]] && ! _rake_comp_target_likely_specified; then
+		if _rake_comp_past_double_dash; then
+			_rake_comp_generate_filename_replies "$2" || dont_add_space=true
+		elif [[ $2 != -* && ${3-} != @($__) ]] && ! _rake_comp_target_likely_specified; then
 			if _rake_comp_get_specified_rakefile || _rake_comp_get_default_rakefile; then
 				rake_comp_get_tasks "$__" || return
 				readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
