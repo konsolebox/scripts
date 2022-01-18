@@ -262,12 +262,12 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 					COMPREPLY[i]=${prefix}${COMPREPLY[i]}
 				done
 			fi
-		elif [[ $2 != -* ]] && ! _rake_comp_target_likely_specified && \
-				{ _rake_comp_get_specified_rakefile || _rake_comp_get_default_rakefile; }; then
-			rake_comp_get_tasks "$__" || return
-			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
-		else
+		elif [[ $2 == -* ]]; then
 			_rake_comp_get_all_opts || return
+			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
+		elif ! _rake_comp_target_likely_specified && { _rake_comp_get_specified_rakefile || \
+				_rake_comp_get_default_rakefile; }; then
+			rake_comp_get_tasks "$__" || return
 			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
 		fi
 
