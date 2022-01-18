@@ -172,23 +172,23 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 	}
 
 	function _rake_comp_generate_filename_replies {
-		local one_file_result=false temp i
-		readarray -t COMPREPLY < <(compgen -f -- "$1")
+		local one_final_result=false temp i gen_type=${2-f}
+		readarray -t COMPREPLY < <(compgen -"${gen_type}" -- "$1")
 
 		while [[ ${#COMPREPLY[@]} -eq 1 && -d ${COMPREPLY} && -x ${COMPREPLY} ]]; do
-			readarray -t temp < <(cd "${COMPREPLY}" &>/dev/null && compgen -f)
+			readarray -t temp < <(cd "${COMPREPLY}" &>/dev/null && compgen -"${gen_type}")
 			[[ ${#temp[@]} -eq 0 ]] && break
 			COMPREPLY=("${temp[@]/#/"${COMPREPLY%/}/"}")
 		done
 
-		[[ ${#COMPREPLY[@]} -eq 1 && -f ${COMPREPLY} ]] && one_file_result=true
+		[[ ${#COMPREPLY[@]} -eq 1 ]] && test -"${gen_type}" "${COMPREPLY}" && one_final_result=true
 
 		for i in "${!COMPREPLY[@]}"; do
 			[[ -d ${COMPREPLY[i]} ]] && COMPREPLY[i]=${COMPREPLY[i]%%+(/)}/
 			printf -v "COMPREPLY[$i]" %q "${COMPREPLY[i]}"
 		done
 
-		[[ ${one_file_result} == true ]]
+		[[ ${one_final_result} == true ]]
 	}
 
 	function rake_comp_get_tasks {
@@ -220,33 +220,53 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		return 1
 	}
 
+	function _rake_comp_try_get_opt_with_arg {
+		local -n __opt=$1 __arg=$2 __prefix=$3; shift 3
+		_rake_comp_get_opts_with_arg_expr
+
+		if [[ ${2-} == @($__) ]]; then
+			__opt=$2 __arg=$1 __prefix=
+		elif [[ $1 == @($__) ]]; then
+			__opt=$1 __arg= __prefix=$1
+		elif [[ $1 == --* && $1 == @($__)=* ]]; then
+			__arg=${1#*=} __prefix=${1:0:(${#1} - ${#__arg})} __opt=${__prefix%=}
+		elif [[ $1 != --* && $1 == @($__)* ]]; then
+			__arg=${1#*=} __prefix=${1:0:(${#1} - ${#__arg})} __opt=$__prefix
+		else
+			return 1
+		fi
+
+		return 0
+	}
+
 	function _rake_comp {
-		local dont_add_space=false partial opt i __
+		local dont_add_space=false opt arg prefix i __
 		shopt -q extglob || return
 		_RAKE_PATH=$(type -p rake) && [[ ${_RAKE_PATH} ]] || return
-		_rake_comp_get_opts_with_arg_expr || return
 		COMPREPLY=()
 
 		if _rake_comp_past_double_dash; then
 			_rake_comp_generate_filename_replies "$2" || dont_add_space=true
-		elif [[ $2 != -* && ${3-} != @($__) ]] && ! _rake_comp_target_likely_specified; then
-			if _rake_comp_get_specified_rakefile || _rake_comp_get_default_rakefile; then
-				rake_comp_get_tasks "$__" || return
-				readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
-			elif [[ ${#COMP_WORDS[@]} -eq 2 && -z $2 ]]; then
-				_rake_comp_get_all_opts || return
-				readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
-			fi
-		elif [[ $2 == @(-f*|--rakefile=*) ]]; then
-			partial=${2#@(-f|--rakefile=)} opt=${2:0:(${#2} - ${#partial})}
-			_rake_comp_generate_filename_replies "${partial}" || dont_add_space=true
+		elif _rake_comp_try_get_opt_with_arg opt arg prefix "${@:2}"; then
+			case ${opt} in
+			-C|--directory|-I|--libdir|-R|--rakelibdir)
+				_rake_comp_generate_filename_replies "${arg}" d || dont_add_space=true
+				;;
+			-f|--rakefile)
+				_rake_comp_generate_filename_replies "${arg}" || dont_add_space=true
+				;;
+			esac
 
-			for i in "${!COMPREPLY[@]}"; do
-				COMPREPLY[i]=${opt}${COMPREPLY[i]}
-			done
-		elif [[ ${3-} == @(-f|--rakefile) ]]; then
-			_rake_comp_generate_filename_replies "$2" || dont_add_space=true
-		elif [[ $2 == - || $2 == -? || $2 == --* && $2 != *=* ]]; then
+			if [[ ${prefix} ]]; then
+				for i in "${!COMPREPLY[@]}"; do
+					COMPREPLY[i]=${prefix}${COMPREPLY[i]}
+				done
+			fi
+		elif [[ $2 != -* ]] && ! _rake_comp_target_likely_specified && \
+				{ _rake_comp_get_specified_rakefile || _rake_comp_get_default_rakefile; }; then
+			rake_comp_get_tasks "$__" || return
+			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
+		else
 			_rake_comp_get_all_opts || return
 			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
 		fi
