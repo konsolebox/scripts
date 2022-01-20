@@ -102,7 +102,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		return 0
 	}
 
-	function _rake_comp_target_likely_specified {
+	function _rake_comp_task_likely_specified {
 		local opts_with_arg_expr= i __
 		_rake_comp_get_opts_with_arg_expr && opts_with_arg_expr=$__
 
@@ -264,7 +264,7 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		elif [[ $2 == -* ]]; then
 			_rake_comp_get_all_opts || return
 			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
-		elif ! _rake_comp_target_likely_specified && { _rake_comp_get_specified_rakefile || \
+		elif ! _rake_comp_task_likely_specified && { _rake_comp_get_specified_rakefile || \
 				_rake_comp_get_default_rakefile; }; then
 			rake_comp_get_tasks "$__" || return
 			readarray -t COMPREPLY < <(compgen -W "$__" -- "$2")
