@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 3, 2021
+# Feb. 17, 2022
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2021.03.16'
+VERSION = '2022.02.17'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -218,7 +218,7 @@ def check_tcp_port(ip, port, seconds = 1)
       start = Time.now
       TCPSocket.new(ip, port).close
       Time.now - start
-    rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+    rescue SystemCallError
       nil
     end
   end
@@ -1143,16 +1143,25 @@ def main
       Kernel.sleep(@params.instance_delay) if @params.instance_delay > 0.0
     end
 
-    log_message "Done starting instances."
+    if @pids.empty?
+      log_error "No instances were started."
+      log_error "Try to make sure clock is updated."
+    else
+      log_message "Done starting instances."
 
-    #
-    # Wait for all processes to exit.
-    #
+      #
+      # Wait for all processes to exit.
+      #
 
-    r = Process.waitall
-    @exit_status = 0 if r.is_a?(Array) and r.all?{ |a| a.last.exitstatus == 0 }
+      r = Process.waitall
+      @exit_status = 0 if r.is_a?(Array) and r.all?{ |a| a.last.exitstatus == 0 }
+    end
   rescue Interrupt
     log_message "SIGINT caught."
+    stop_instances unless @pids.empty?
+  rescue Exception => e
+    log_error "Unknown exception with message '#{e.message}' caught."
+    log_error "Exception class: #{e.class}"
     stop_instances unless @pids.empty?
   ensure
     log_message "Exiting."
