@@ -25,6 +25,10 @@ The script waits for all instances to exit before it
 exits.  It also automaticaly stops them when it receives
 SIGTERM or SIGINT.
 
+#### gdb-completion.bash
+
+A completion script for gdb.
+
 #### getabspath/*
 
 Scripts that implement getabspath() for various shells.  getabspath() is
