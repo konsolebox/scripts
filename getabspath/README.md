@@ -2,7 +2,7 @@
 
 `getabspath()` is a function for shell scripts that intends to get the
 strict absolute form of a path *(strict in a sense that the resulting
-path would remain consistent even if another item is appended unto it)*, 
+path would remain consistent even if another item is appended unto it)*,
 without relying on any external command if possible.  It accepts a
 single argument, produces the absolute form of that path and saves it to
 the variable __.

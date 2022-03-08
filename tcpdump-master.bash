@@ -21,7 +21,7 @@
 # Make sure this script runs with correct system time.
 #
 # Author: konsolebox
-# May 14, 2021
+# March 9, 2022
 
 # "License"
 #
@@ -124,7 +124,7 @@ TEMP_DIR="/var/tmp"
 # It's not needed if the 'get_file_size' function is already customized to
 # use another executable or method for getting file size.
 #
-STAT="/usr/bin/stat"  
+STAT="/usr/bin/stat"
 
 #
 # OTHER VARIABLES
