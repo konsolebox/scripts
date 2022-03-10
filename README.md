@@ -89,6 +89,10 @@ the main log file if it's already larger than N bytes.
 I wrote it back in 2010 for an LQ thread.  Right now tcpdump already has
 most of its features.
 
+#### trim-trailing-spaces.bash
+
+Removes trailing spaces in files.
+
 #### uuidfstab.bash
 
 Converts device paths in a fstab file to UUID forms.
