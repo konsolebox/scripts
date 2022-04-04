@@ -1,6 +1,6 @@
 # scripts
 
-Repository for various scripts I make.
+A repository for various scripts I make.
 
 #### binfind.bash
 
