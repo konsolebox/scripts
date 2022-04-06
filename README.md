@@ -96,3 +96,8 @@ Removes trailing spaces in files.
 #### uuidfstab.bash
 
 Converts device paths in a fstab file to UUID forms.
+
+#### xn.rb
+
+Renames files and directories based on their 160-bit KangarooTwelve
+checksum while avoiding conflict on files with different content.
