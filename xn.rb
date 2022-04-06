@@ -47,8 +47,8 @@ MAX_PREFIX_SIZE  = 100
 VERSION          = "2022.04.06"
 
 @options = OpenStruct.new(
-  :convert_to_lowercase => false,
   :bit_size             => DEFAULT_BIT_SIZE,
+  :convert_to_lowercase => false,
   :one_extension        => false,
   :overwrite_diff_files => false,
   :overwrite_same_files => true,
@@ -395,7 +395,7 @@ def main
     @cmd_name = base
   end
 
-  parser = OptionParser.new do |parser|
+  OptionParser.new do |parser|
     parser.on("-1", "--one-extension", "Only keep one filename extension") do
       @options.one_extension = true
     end
