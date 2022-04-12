@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2022.04.06"
+VERSION          = "2022.04.12"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
