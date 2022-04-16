@@ -13,7 +13,7 @@
 # Copyright (c) 2022 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
-# a copy # of this software and associated documentation files (the
+# a copy of this software and associated documentation files (the
 # “Software”), to deal in the Software without restriction, including
 # without limitation the rights to use, copy, modify, merge, publish,
 # distribute, sublicense, and/or sell copies of the Software, and to
@@ -36,7 +36,7 @@
 BACKUP_FILES=false
 TRIMMED_COUNT=0
 TRIMMING_STARTED=false
-VERSION=2022.03.10
+VERSION=2022.04.16
 
 function show_summary {
 	if [[ TRIMMED_COUNT -gt 1 ]]; then
