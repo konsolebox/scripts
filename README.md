@@ -80,6 +80,10 @@ A completion script for rake.
 Copies files along with their dependencies to a virtual root directory.
 The resulting file's path is reproduced based on its source.
 
+#### tail-follow-grep.bash
+
+Basically a wrapper for 'tail -f' and 'grep --line-buffered'
+
 #### tcpdump-master.bash
 
 The script is a tcpdump service starter and manager.  It can also
