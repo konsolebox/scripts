@@ -36,7 +36,7 @@
 BACKUP_FILES=false
 TRIMMED_COUNT=0
 TRIMMING_STARTED=false
-VERSION=2022.04.16
+VERSION=2022.05.03
 
 function show_summary {
 	if [[ TRIMMED_COUNT -gt 1 ]]; then
@@ -78,6 +78,22 @@ Options:
 Specified targets are not affected by -I or -X, nor require -d to be processed." >&2
 }
 
+function get_opt_and_optarg {
+	OPT=$1 OPTARG= OPTSHIFT=0
+
+	if [[ $1 == -[!-]?* ]]; then
+		OPT=${1:0:2} OPTARG=${1:2}
+	elif [[ $1 == --*=* ]]; then
+		OPT=${1%%=*} OPTARG=${1#*=}
+	elif [[ ${2+.} ]]; then
+		OPTARG=$2 OPTSHIFT=1
+	else
+		fail "No argument specified for '$1'."
+	fi
+
+	return 0
+}
+
 function trim {
 	local file=$1 bak=$1.bak orig_size new_size iopt=-i trim_failed=false
 	[[ ${BACKUP_FILES} == true ]] && iopt=-i.bak
@@ -107,9 +123,10 @@ function main {
 			show_usage
 			return 2
 			;;
-		-I|--include)
-			fopts+=(-name "$2")
-			shift
+		-I*|--include|--include=*)
+			get_opt_and_optarg "${@:1:2}"
+			fopts+=(-name "${OPTARG}")
+			shift "${OPTSHIFT}"
 			;;
 		-r|-R|--recursive)
 			recursive=true
@@ -118,15 +135,20 @@ function main {
 			echo "${VERSION}"
 			return 2
 			;;
-		-X|--exclude)
-			fopts+=(-not -name "$2")
-			shift
+		-X*|--exclude|--exclude=*)
+			get_opt_and_optarg "${@:1:2}"
+			fopts+=(-not -name "${OPTARG}")
+			shift "${OPTSHIFT}"
 			;;
 		--)
 			targets+=("${@:2}")
 			break
 			;;
-		-*)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
+			;;
+		-?*)
 			fail "Invalid option: $1"
 			;;
 		*)
