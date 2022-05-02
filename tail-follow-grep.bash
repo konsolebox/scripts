@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2022.04.29
+VERSION=2022.05.03
 
 shopt -s extglob && set +o posix || exit
 [[ BASH_VERSINFO -ge 5 ]] && set -u
@@ -93,63 +93,29 @@ Notes:
     They allow option behavior to work specifically on the expression." >&2
 }
 
-function normalize_args {
-	# This function can be improved to allow options to have multiple mandatory
-	# arguments by adding another parameter with "opt:n ..." format and making
-	# the code treat 2+ arguments as non-opts.
+function get_opt_and_optarg {
+	local optional=false
 
-	local with_args=$1 with_optional_args=$2 long_opts_with_args=" $3 " \
-			long_opts_with_optional_args=" $4 " __
-	shift 4
-	ARGS=()
-
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		--)
-			ARGS+=("$@")
-			break
-			;;
-		--*=*|-)
-			ARGS+=("$1")
-			;;
-		--*)
-			if [[ ${2+.} && (${long_opts_with_args} == *" ${1#--} "* || \
-					${long_opts_with_optional_args} == *" ${1#--} "* && ($2 == - || \
-					$2 != -*)) ]]; then
-				ARGS+=("$1=$2")
-				shift
-			else
-				ARGS+=("$1")
-			fi
-			;;
-		-*)
-			for (( i = 1; i < ${#1}; ++i )); do
-				__=${1:i:1}
-
-				if (( i == ${#1} - 1 )); then
-					if [[ ${2+.} && (${with_args} == *"$__"* || ${with_optional_args} == *"$__"* \
-							&& ($2 == - || $2 != -*)) ]]; then
-						ARGS+=(-"$__=$2")
-						shift
-						break
-					else
-						ARGS+=(-"$__")
-					fi
-				elif [[ ${with_args}${with_optional_args} == *"$__"* ]]; then
-					ARGS+=(-"$__=${1:i + 1}")
-					break
-				else
-					ARGS+=(-"$__")
-				fi
-			done
-			;;
-		*)
-			ARGS+=("$1")
-			;;
-		esac
-
+	if [[ $1 == @optional ]]; then
+		optional=true
 		shift
-	done
+	fi
+
+	OPT=$1 OPTARG= OPTSHIFT=0
+
+	if [[ $1 == -[!-]?* ]]; then
+		OPT=${1:0:2} OPTARG=${1:2}
+	elif [[ $1 == --*=* ]]; then
+		OPT=${1%%=*} OPTARG=${1#*=}
+	elif [[ ${2+.} && (${optional} == false || $2 != -?*) ]]; then
+		OPTARG=$2 OPTSHIFT=1
+	elif [[ ${optional} == true ]]; then
+		return 1
+	else
+		fail "No argument specified for '$1'."
+	fi
+
+	return 0
 }
 
 function remove_file_if_exists {
@@ -164,21 +130,17 @@ function main {
 			flags global_flags=G grep_opts invalid_flags null=false optarg pw= tail_opts=(-f) \
 			timeout=1 z_opt=() __
 
-	normalize_args eIXcmnps LW 'bytes max-unchanged-stats lines pid sleep-interval' \
-			'limit-final pipe-watch' "$@"
-	set -- "${ARGS[@]}"
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-[eIX]*)
+			get_opt_and_optarg "${@:1:2}"
+			shift "${OPTSHIFT}"
+			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty."
+			expressions+=("${OPTARG}")
+			expr_opts+=("${OPT}")
 
-	while __=${1-}; shift; do
-		case $__ in
-		-[eIX]?(=*))
-			[[ $__ != *=* ]] && fail "No argument specified for '$__'."
-			opt=${__%%=*} optarg=${__#*=}
-			[[ -z ${optarg} ]] && fail "Argument for '${opt}' can't be empty."
-			expressions+=("${optarg}")
-			expr_opts+=("${opt}")
-
-			if [[ ${1-} == @* ]]; then
-				flags=${1#?} invalid_flags=${flags//[EFGPliw]}
+			if [[ ${2-} == @* ]]; then
+				flags=${2#?} invalid_flags=${flags//[EFGPliw]}
 				[[ ${invalid_flags} ]] && fail "Invalid flags specified: ${invalid_flags}"
 				expr_flags+=("${flags}")
 				shift
@@ -214,13 +176,13 @@ function main {
 		-a|--all-lines)
 			tail_opts+=(--lines=+1)
 			;;
-		@(-c|--bytes|-m|--max-unchanged-stats|-n|--lines|-p|--pid|-s|--sleep-interval)?(=*))
-			[[ $__ != *=* ]] && fail "No argument specified for '$__'."
-			opt=${__%%=*} optarg=${__#*=}
-			[[ -z ${optarg} ]] && fail "Argument for '${opt}' can't be empty."
-			[[ ${opt} == -m ]] && opt=--max-unchanged-stats
-			[[ ${opt} == -p ]] && opt=--pid
-			tail_opts+=("${opt}" "${optarg}")
+		-[cmnps]*|--@(bytes|max-unchanged-stats|lines|pid|sleep-interval)?(=*))
+			get_opt_and_optarg "${@:1:2}"
+			shift "${OPTSHIFT}"
+			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty."
+			[[ ${OPT} == -m ]] && OPT=--max-unchanged-stats
+			[[ ${OPT} == -p ]] && OPT=--pid
+			tail_opts+=("${OPT}" "${OPTARG}")
 			;;
 		-q|--quiet|--silent|-r|--retry)
 			[[ $__ == -r ]] && __=--retry
@@ -229,25 +191,24 @@ function main {
 		-R|--follow-name-and-retry)
 			tail_opts+=(--follow=name --retry)
 			;;
-		@(-L|--limit-final)?(=*))
-			opt=${__%%=*}
+		-L*|--limit-final?(=*))
 			final_limit=10 timeout=1
 
-			if [[ $__ == *=* ]]; then
-				optarg=${__#*=}
+			if get_opt_and_optarg @optional "${@:1:2}"; then
+				shift "${OPTSHIFT}"
 
-				if [[ ${optarg} == *,* ]]; then
-					final_limit=${optarg%%,*} timeout=${optarg#*,}
+				if [[ ${OPTARG} == *,* ]]; then
+					final_limit=${OPTARG%%,*} timeout=${OPTARG#*,}
 				else
-					final_limit=${optarg}
+					final_limit=${OPTARG}
 				fi
 
 				[[ ${final_limit} =~ ^\+?[0-9]+$ ]] || \
-					fail "Invalid limit value argument for '${opt}': ${final_limit}"
-				[[ ${final_limit} =~ ^\+[0-9]+$ && ${optarg} == *,* ]] && \
-					fail "No point specifying timeout argument while specifying +N argument to '${opt}': ${optarg}"
+					fail "Invalid limit value argument for '${OPT}': ${final_limit}"
+				[[ ${final_limit} =~ ^\+[0-9]+$ && ${OPTARG} == *,* ]] && \
+					fail "No point specifying timeout argument while specifying +N argument to '${OPT}': ${OPTARG}"
 				[[ ${timeout} =~ ^[0-9]+$ && timeout -gt 0 ]] || \
-					fail "Invalid timeout value argument for '${opt}': ${timeout}"
+					fail "Invalid timeout value argument for '${OPT}': ${timeout}"
 			fi
 
 			tail_opts+=(--lines=+1)
@@ -261,19 +222,22 @@ function main {
 			null=true
 			;;
 		--)
-			files+=("$@")
+			files+=("${@:2}")
 			break
 			;;
-		-)
-			files+=(-)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
 			;;
-		-*)
-			fail "Invalid option: ${__%%=*}"
+		-?*)
+			fail "Invalid option: $1"
 			;;
 		*)
-			files+=("$__")
+			files+=("$1")
 			;;
 		esac
+
+		shift
 	done
 
 	[[ ${#files[@]} -gt 0 ]] || fail "No files were specified."
