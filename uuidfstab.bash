@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# ----------------------------------------------------------------------
+# ----------------------------------------------------
 
 # uuidfstab
 #
 # Converts device paths in a fstab file to UUID forms.
 #
 # Usage: uuidfstab[.bash] [--] fstab_file [output]
-#        uuidfstab[.bash] <-h | --help | -V | --version>
+#        uuidfstab[.bash] -h|--help|-V|--version
 #
 # Disclaimer: This tool comes with no warranty.
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2021
+# May 3, 2022
 
-# ----------------------------------------------------------------------
+# ----------------------------------------------------
 
 [ -n "${BASH_VERSION}" ] || {
 	echo "Bash is needed to run this script." >&2
@@ -24,7 +24,7 @@
 
 set -f +o posix || exit 1
 
-VERSION=2021.05.14
+VERSION=2022.05.03
 
 function log {
 	printf '%s\n' "$@" >&2
@@ -35,15 +35,15 @@ function show_usage_and_exit {
 Converts device paths in a fstab file to UUID forms.
 
 Usage: $0 [--] fstab_file [output_file]
-       $0 <-h | --help | -V | --version>
+       $0 -h|--help|-V|--version
 
 Notes:
-1) Results are saved back to the fstab_file if no output is specified.
-2) If - is specified as output, results are sent to stdout instead.
-3) All other messages are sent to stderr.
+  - Results are saved back to the fstab_file if no output is specified.
+  - If '-' is specified as output, results are sent to stdout instead.
+  - Script messages are sent to stderr.
 
 Disclaimer: This tool comes with no warranty."
-	exit 1
+	exit 2
 }
 
 function fail {
@@ -56,10 +56,6 @@ function main {
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		--)
-			non_opt_args=("${non_opt_args[@]}" "${@:2}")
-			break
-			;;
 		-V|--version)
 			log "${VERSION}"
 			exit 1
@@ -67,14 +63,19 @@ function main {
 		-h|--help)
 			show_usage_and_exit
 			;;
-		-)
-			non_opt_args=("${non_opt_args[@]}" -)
+		--)
+			non_opt_args+=("${@:2}")
+			break
 			;;
-		-*)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
+			;;
+		-?*)
 			log "Invalid option: $1"
 			;;
 		*)
-			non_opt_args=("${non_opt_args[@]}" "$1")
+			non_opt_args+=("$1")
 			;;
 		esac
 
