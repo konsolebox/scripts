@@ -8,7 +8,7 @@
 #
 # Usage: map-partitions[.bash] [options] target [name]
 #
-# Copyright (c) 2021 konsolebox
+# Copyright (c) 2022 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@
 
 shopt -s extglob || exit 1
 
-VERSION=2021.05.14
+VERSION=2022.05.03
 
 function show_warnings {
 	echo "WARNING: This tool does not guarantee functionality.
@@ -87,16 +87,20 @@ function main {
 			echo "${VERSION}"
 			exit 1
 			;;
-		*)
-			args+=("$1")
-			;;
 		--)
 			args+=("${@:2}")
 			break
 			;;
-		-*)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
+			;;
+		-?*)
 			echo "Invalid option: $1" >&2
 			exit 1
+			;;
+		*)
+			args+=("$1")
 			;;
 		esac
 
