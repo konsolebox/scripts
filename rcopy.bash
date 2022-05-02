@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2021
+# May 3, 2022
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2021.05.14
+VERSION=2022.05.03
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -216,6 +216,22 @@ function process {
 	done
 }
 
+function get_opt_and_optarg {
+	OPT=$1 OPTARG= OPTSHIFT=0
+
+	if [[ $1 == -[!-]?* ]]; then
+		OPT=${1:0:2} OPTARG=${1:2}
+	elif [[ $1 == --*=* ]]; then
+		OPT=${1%%=*} OPTARG=${1#*=}
+	elif [[ ${2+.} ]]; then
+		OPTARG=$2 OPTSHIFT=1
+	else
+		fail "No argument specified for '$1'."
+	fi
+
+	return 0
+}
+
 function main {
 	local file_args=() __
 
@@ -232,14 +248,15 @@ function main {
 			CONFIG_QUIET=true
 			CONFIG_VERBOSE=false
 			;;
-		-t|--target-root)
-			CONFIG_TARGET_ROOT=$2
-			shift
+		-t*|--target-root|--target-root=*)
+			get_opt_and_optarg "${@:1:2}"
+			CONFIG_TARGET_ROOT=${OPTARG}
+			shift "${OPTSHIFT}"
 			;;
 		-v|--verbose)
 			CONFIG_QUIET=false
 			CONFIG_VERBOSE=true
-			CONFIG_CP_OPTS=("-v")
+			CONFIG_CP_OPTS=(-v)
 			;;
 		-V|--version)
 			echo "${VERSION}"
@@ -249,18 +266,22 @@ function main {
 			shift
 
 			for __; do
-				[[ ! -e $__ ]] && fail "File or directory does not exist: $__"
+				[[ -e $__ ]] || fail "File or directory does not exist: $__"
 				get_clean_path "$__"
 				file_args+=("$__")
 			done
 
 			break
 			;;
-		-*)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
+			;;
+		-?*)
 			fail "Invalid option: $1"
 			;;
 		*)
-			[[ ! -e $1 ]] && fail "File or directory does not exist: $1"
+			[[ -e $1 ]] || fail "File or directory does not exist: $1"
 			get_clean_path "$1"
 			file_args+=("$__")
 			;;
