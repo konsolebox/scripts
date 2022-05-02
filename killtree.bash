@@ -596,25 +596,25 @@ function get_pgrep_opts {
 	if [[ id -eq gid ]]; then
 		set -- "${id}"
 		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[id]}" && __A0+=('-x')
+				"${FILTER_EXACT[id]}" && __A0+=(--exact)
 		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[id]}" && __A0+=('-i')
+				"${FILTER_IGNORE_CASE[id]}" && __A0+=(--ignore-case)
 	else
 		set -- "${gid}" "${id}"
 		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[gid]}" "${FILTER_EXACT[id]}" && __A0+=('-x')
+				"${FILTER_EXACT[gid]}" "${FILTER_EXACT[id]}" && __A0+=(--exact)
 		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[gid]}" "${FILTER_IGNORE_CASE[id]}" && __A0+=('-i')
+				"${FILTER_IGNORE_CASE[gid]}" "${FILTER_IGNORE_CASE[id]}" && __A0+=(--ignore-case)
 	fi
 
-	get_merged_list FILTER_EUIDS "$@" && __A0+=('-e' "$__")
-	get_merged_list FILTER_GROUPS "$@" && __A0+=('-G' "$__")
-	get_merged_list FILTER_NSLIST "$@"&& __A0+=('--nslist' "$__")
-	get_merged_list FILTER_NS "$@" && __A0+=('--ns' "$__")
-	get_merged_list FILTER_PGROUPS "$@" && __A0+=('-p' "$__")
-	get_merged_list FILTER_SESSION "$@" && __A0+=('-s' "$__")
-	get_merged_list FILTER_TERMINAL "$@" && __A0+=('-t' "$__")
-	get_merged_list FILTER_UIDS "$@" && __A0+=('-U' "$__")
+	get_merged_list FILTER_EUIDS "$@" && __A0+=(--euid="$__")
+	get_merged_list FILTER_GROUPS "$@" && __A0+=(--group="$__")
+	get_merged_list FILTER_NSLIST "$@"&& __A0+=(--nslist="$__")
+	get_merged_list FILTER_NS "$@" && __A0+=(--ns="$__")
+	get_merged_list FILTER_PGROUPS "$@" && __A0+=(--pgroup="$__")
+	get_merged_list FILTER_SESSION "$@" && __A0+=(--session="$__")
+	get_merged_list FILTER_TERMINAL "$@" && __A0+=(--terminal="$__")
+	get_merged_list FILTER_UIDS "$@" && __A0+=(--uid="$__")
 	[[ ${#__A0[@]} -gt 0 ]]
 }
 
