@@ -36,7 +36,6 @@
 VERSION=2022.05.03
 
 shopt -s extglob && set +o posix || exit
-[[ BASH_VERSINFO -ge 5 ]] && set -u
 
 function fail {
 	printf '%s\n' "$1" >&2
