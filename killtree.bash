@@ -23,7 +23,7 @@ set -f +o posix && shopt -s extglob || exit 1
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2021
+# May 3, 2022
 #
 # ------------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2021.05.14
+VERSION=2022.05.03
 
 function show_help_info {
 	echo "killtree ${VERSION}
@@ -377,7 +377,7 @@ function fail {
 
 function check_if_valid_name_or_id_list_arg {
 	local opt=$1 arg=$2 has_entry=false IFS=, __
-	[[ -z ${arg} ]] && fail "Invalid empty parameter for '${opt}'."
+	[[ ${arg} ]] || fail "Invalid empty argument to '${opt}'."
 
 	for __ in ${arg}; do
 		if [[ -n ${arg} ]]; then
@@ -396,7 +396,7 @@ function check_if_valid_name_or_id_list_arg {
 
 function check_if_valid_id_list_arg {
 	local opt=$1 arg=$2 has_entry=false IFS=, __
-	[[ -z ${arg} ]] && fail "Invalid empty parameter for '${opt}'."
+	[[ ${arg} ]] || fail "Invalid empty argument to '${opt}'."
 
 	for __ in ${arg}; do
 		if [[ -n ${arg} ]]; then
@@ -432,6 +432,14 @@ function check_if_valid_nslist_arg {
 		log_warning "Ignoring empty elements in list argument to '${opt}': ${arg}"
 }
 
+function check_if_valid_pid_arg {
+	[[ $2 == +([[:digit:]]) ]] || fail "Invalid PID argument to '$1': $2"
+}
+
+function check_if_not_empty_arg {
+	[[ $2 ]] || fail "Invalid empty argument to '$1'."
+}
+
 function warn_excluding_self {
 	if [[ ${VERBOSE} == true || ${EXCLUDED_SELF} == false ]]; then
 		log_warning "Excluding self ($__) from matches."
@@ -448,25 +456,52 @@ function exclude_self {
 	done
 }
 
-function simplify_comma_sep_list {
-	__=${1//+(,)/,} __=${__#,} __=${__%,}
+function get_opt_and_optarg {
+	local optional=false
+
+	if [[ $1 == @optional ]]; then
+		optional=true
+		shift
+	fi
+
+	OPT=$1 OPTARG= OPTSHIFT=0
+
+	if [[ $1 == -[!-]?* ]]; then
+		OPT=${1:0:2} OPTARG=${1:2}
+	elif [[ $1 == --*=* ]]; then
+		OPT=${1%%=*} OPTARG=${1#*=}
+	elif [[ ${2+.} && (${optional} == false || $2 != -?*) ]]; then
+		OPTARG=$2 OPTSHIFT=1
+	elif [[ ${optional} == true ]]; then
+		return 1
+	else
+		fail "No argument specified for '$1'."
+	fi
+
+	return 0
+}
+
+function process_opt_with_arg {
+	local checker=$1 arg_is_list=$2
+	get_opt_and_optarg "${@:3}"
+	[[ ${arg_is_list} == true ]] && OPTARG=${OPTARG//+(,)/,} OPTARG=${OPTARG#,} OPTARG=${OPTARG%,}
+	"${checker}" "${OPT}" "${OPTARG}"
+	__I0=$(( OPTSHIFT + 1 ))
+	HAS_ARG=true
 }
 
 function parse_filter_opts {
-	local id=$1 opt=$2 arg=$3
+	local id=$1 HAS_ARG=false
+	shift
 
-	case ${opt} in
-	-e|--euid)
-		check_if_valid_name_or_id_list_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_EUIDS[id]+=,$__
-		__I0=2
+	case $1 in
+	-e*|--euid?(=*))
+		process_opt_with_arg check_if_valid_name_or_id_list_arg true "$@"
+		FILTER_EUIDS[id]+=,${OPTARG}
 		;;
-	-g|--group)
-		check_if_valid_name_or_id_list_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_GROUPS[id]+=,$__
-		__I0=2
+	-g*|--group?(=*))
+		process_opt_with_arg check_if_valid_name_or_id_list_arg true "$@"
+		FILTER_GROUPS[id]+=,${OPTARG}
 		;;
 	-i|--ignore-case)
 		FILTER_IGNORE_CASE[id]=true
@@ -476,34 +511,25 @@ function parse_filter_opts {
 		FILTER_IGNORE_CASE[id]=false
 		__I0=1
 		;;
-	-n|--ns)
-		[[ ${arg} == +([[:digit:]]) ]] || fail "Invalid PID argument to '${opt}': ${arg}"
-		FILTER_NS[id]=${arg}
-		__I0=2
+	-n*|--ns?(=*))
+		process_opt_with_arg check_if_valid_pid_arg false "$@"
+		FILTER_NS[id]=${OPTARG}
 		;;
-	-N|--nslist)
-		check_if_valid_nslist_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_NSLIST[id]+=,${arg}
-		__I0=2
+	-N*|--nslist?(=*))
+		process_opt_with_arg check_if_valid_nslist_arg true "$@"
+		FILTER_NSLIST[id]+=,${OPTARG}
 		;;
-	-p|--pgroup)
-		check_if_valid_id_list_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_PGROUPS[id]+=,$__
-		__I0=2
+	-p*|--pgroup?(=*))
+		process_opt_with_arg check_if_valid_id_list_arg true "$@"
+		FILTER_PGROUPS[id]+=,${OPTARG}
 		;;
-	-T|--terminal)
-		simplify_comma_sep_list "${arg}"
-		[[ -z ${arg} ]] && fail "Specified list argument to '${opt}' is empty: ${arg}"
-		FILTER_TERMINAL[id]+=,$__
-		__I0=2
+	-T*|--terminal?(=*))
+		process_opt_with_arg check_if_not_empty_arg true "$@"
+		FILTER_TERMINAL[id]+=,${OPTARG}
 		;;
-	-u|--uid)
-		check_if_valid_name_or_id_list_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_UIDS[id]+=,$__
-		__I0=2
+	-u*|--uid?(=*))
+		process_opt_with_arg check_if_valid_name_or_id_list_arg true "$@"
+		FILTER_UIDS[id]+=,${OPTARG}
 		;;
 	-x|--exact)
 		FILTER_EXACT[id]=true
@@ -513,11 +539,13 @@ function parse_filter_opts {
 		FILTER_EXACT[id]=false
 		__I0=1
 		;;
-	-z|--session)
-		check_if_valid_id_list_arg "${opt}" "${arg}"
-		simplify_comma_sep_list "${arg}"
-		FILTER_SESSION[id]+=,$__
-		__I0=2
+	-z*|--session?(=*))
+		process_opt_with_arg check_if_valid_id_list_arg true "$@"
+		FILTER_SESSION[id]+=,${OPTARG}
+		;;
+	-[!-][!-]*)
+		parse_filter_opts "${id}" "-${1:0:2}" && parse_filter_opts "${id}" "-${1:2}" "${@:2}"
+		return
 		;;
 	*)
 		__I0=0
@@ -525,7 +553,7 @@ function parse_filter_opts {
 		;;
 	esac
 
-	[[ __I0 -eq 2 && SEC_GLOBAL_ID -eq 0 ]] && HAS_GEN_FILTERS[id]=true
+	[[ ${HAS_ARG} == true && SEC_GLOBAL_ID -eq 0 ]] && HAS_GEN_FILTERS[id]=true
 	return 0
 }
 
@@ -545,7 +573,7 @@ function parse_target_expr {
 	set -- ${opts}
 
 	while [[ $# -gt 0 ]]; do
-		parse_filter_opts "${TARGET_ID}" "$1" "$2" || \
+		parse_filter_opts "${TARGET_ID}" "${@:1:2}" || \
 			fail "Invalid or unexpected argument in options list of target '${target}': $1"
 
 		shift "$__I0"
@@ -939,7 +967,7 @@ function parse_tertiary_args {
 	TER_GLOBAL_ID=$(( ++TARGET_ID ))
 
 	while [[ $# -gt 0 ]]; do
-		if parse_filter_opts "${TER_GLOBAL_ID}" "$1" "$2"; then
+		if parse_filter_opts "${TER_GLOBAL_ID}" "${@:1:2}"; then
 			shift "$__I0"
 		else
 			case $1 in
@@ -977,7 +1005,7 @@ function parse_secondary_args {
 		if [[ $1 == // ]]; then
 			parse_tertiary_args "${@:2}"
 			break
-		elif parse_filter_opts "${SEC_GLOBAL_ID}" "$1" "$2"; then
+		elif parse_filter_opts "${SEC_GLOBAL_ID}" "${@:1:2}"; then
 			shift "$__I0"
 		else
 			case $1 in
@@ -1013,7 +1041,7 @@ function main {
 		if [[ $1 == // ]]; then
 			parse_secondary_args "${@:2}"
 			break
-		elif parse_filter_opts 0 "$1" "$2"; then
+		elif parse_filter_opts 0 "${@:1:2}"; then
 			shift "$__I0"
 		else
 			case $1 in
@@ -1065,9 +1093,10 @@ function main {
 				strategy=reverse
 				function_suffix='_3'
 				;;
-			-s|--signal)
-				signal=$2
-				shift
+			-s*|--signal?(=*))
+				get_opt_and_optarg "$@"
+				signal=${OPTARG}
+				shift "${OPTSHIFT}"
 				;;
 			-S|--simultaneous)
 				strategy=simultaneous
@@ -1098,8 +1127,11 @@ function main {
 			-+([[:digit:]]))
 				signal=${1#-}
 				;;
-			-*)
-				fail "Invalid option '$1'.  Run with '--help' for usage info."
+			-[!-][!-]*)
+				set -- "${1:0:2}" "-${1:2}" "${@:2}"
+				;;
+			-?*)
+				fail "Invalid option: $1"
 				;;
 			+(/))
 				fail "Invalid argument: $1"
