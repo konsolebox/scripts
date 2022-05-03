@@ -23,7 +23,7 @@ set -f +o posix && shopt -s extglob || exit 1
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 3, 2022
+# May 4, 2022
 #
 # ------------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
-VERSION=2022.05.03
+VERSION=2022.05.04
 
 function show_help_info {
 	echo "killtree ${VERSION}
@@ -380,7 +380,7 @@ function check_if_valid_name_or_id_list_arg {
 	[[ ${arg} ]] || fail "Invalid empty argument to '${opt}'."
 
 	for __ in ${arg}; do
-		if [[ -n ${arg} ]]; then
+		if [[ ${arg} ]]; then
 			[[ ${arg} != @(+([[:digit:]])|+([[:lower:]])*([[:lower:][:digit:]-])) ]] && \
 				log_warning "Username or group name argument to '${opt}' may be invalid: $__"
 
@@ -399,7 +399,7 @@ function check_if_valid_id_list_arg {
 	[[ ${arg} ]] || fail "Invalid empty argument to '${opt}'."
 
 	for __ in ${arg}; do
-		if [[ -n ${arg} ]]; then
+		if [[ ${arg} ]]; then
 			[[ ${arg} != +([[:digit:]]) ]] && \
 				fail "Invalid ID argument to '${opt}': $__"
 
@@ -417,7 +417,7 @@ function check_if_valid_nslist_arg {
 	local opt=$1 arg=$2 IFS=, __
 
 	for __ in ${arg}; do
-		if [[ -n ${arg} ]]; then
+		if [[ ${arg} ]]; then
 			[[ ${arg} == @(ipc|mnt|net|pid|user|uts) ]] || \
 				fail "Invalid namespace argument to '${opt}': $__" \
 						"Expecting 'ipc', 'mnt', 'net', 'pid', 'user', or 'uts'."
@@ -569,7 +569,7 @@ function parse_target_expr {
 	fi
 
 	(( ++TARGET_ID ))
-	[[ -n ${target} ]] && TARGETS[TARGET_ID]=${target}
+	[[ ${target} ]] && TARGETS[TARGET_ID]=${target}
 	set -- ${opts}
 
 	while [[ $# -gt 0 ]]; do
@@ -591,19 +591,19 @@ function get_merged_list {
 
 	__=
 
-	for a in ${temp}; do
-		[[ -n $a && ,$__, != *,"$a",* ]] && __+=,$a
+	for a in ${temp#,}; do
+		[[ $a && ,$__, != *,"$a",* ]] && __+=,$a
 	done
 
 	__=${__#,}
-	[[ -n $__ ]]
+	[[ $__ ]]
 }
 
 function is_effectively_true {
 	local effective __
 
 	for __; do
-		[[ -n $__ ]] && effective=$__
+		[[ $__ ]] && effective=$__
 	done
 
 	[[ ${effective} == true ]]
@@ -650,14 +650,14 @@ function collect_initial_targets {
 	local id pgrep_opts=() phrase pids target target_pids=() reg=() pid
 
 	for (( id = 0; id <= LAST_PRI_TARGET_ID; ++id )); do
-		[[ -n ${TARGETS[id]+.} ]] && target=("${TARGETS[id]}") || target=()
+		[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 		get_pgrep_opts "${id}"
 		pgrep_opts=("${__A0[@]}")
 
-		if [[ ${target} == +([[:digit:]]) ]]; then
+		if [[ ${target-} == +([[:digit:]]) ]]; then
 			if [[ ${target} == "${SELF}" ]]; then
 				warn_excluding_self
-			elif [[ ${#pgrep_opts[@]} -gt 0 ]]; then
+			elif [[ ${pgrep_opts+.} ]]; then
 				for pid in $(pgrep "${pgrep_opts[@]}"); do
 					if [[ ${target} == "${pid}" ]]; then
 						target_pids+=("${target}")
@@ -667,15 +667,14 @@ function collect_initial_targets {
 			else
 				target_pids+=("${target}")
 			fi
-		elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt 0 || \
-				LAST_PRI_TARGET_ID -eq 0)) ]]; then
+		elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt 0 || LAST_PRI_TARGET_ID -eq 0)) ]]; then
 			pids=($(pgrep "${pgrep_opts[@]}" -- "${target[@]}"))
 			exclude_self "${pids[@]}"
 
 			if [[ (${#__A0[@]} -eq 0 && ${quiet} == false) || ${VERBOSE} == true ]]; then
-				if [[ -n ${target} && ${#pgrep_opts[@]} -gt 0 ]]; then
+				if [[ ${target+.} && ${pgrep_opts+.} ]]; then
 					phrase="pattern '${target}' and pgrep options '${pgrep_opts[*]}'"
-				elif [[ -n ${target} ]]; then
+				elif [[ ${target} ]]; then
 					phrase="pattern '${target}'"
 				else
 					phrase="pgrep option(s) '${pgrep_opts[*]}'"
@@ -711,11 +710,12 @@ function prepare_secondary_filter {
 		local id pgrep_opts=() target args index
 
 		for (( id = SEC_GLOBAL_ID; id <= LAST_SEC_TARGET_ID; ++id )); do
-			[[ -n ${TARGETS[id]+.} ]] && target=("${TARGETS[id]}") || target=()
+			target=()
+			[[ ${TARGETS[id]+.} ]] && target[0]=${TARGETS[id]}
 			get_pgrep_opts "${id}" @sec
 			pgrep_opts=("${__A0[@]}")
 
-			if [[ ${target} == +([[:digit:]]) ]]; then
+			if [[ ${target-} == +([[:digit:]]) ]]; then
 				if [[ ${target} == "${SELF}" ]]; then
 					warn_excluding_self
 				else
@@ -725,10 +725,10 @@ function prepare_secondary_filter {
 					SEC_FILTER_PIDS[SEC_FILTER_ID++]=${target}
 					SEC_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt SEC_GLOBAL_ID || \
+			elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt SEC_GLOBAL_ID || \
 					LAST_SEC_TARGET_ID -eq 0)) ]]; then
 				args=("${pgrep_opts[@]}")
-				[[ ${#target[@]} -gt 0 ]] && args+=(-- "${target[@]}")
+				[[ ${target+.} ]] && args+=(-- "${target[@]}")
 				SEC_FILTER_INDICES[SEC_FILTER_ID]=${#SEC_FILTER_ARGS[@]}
 				SEC_FILTER_LENGTHS[SEC_FILTER_ID++]=${#args[@]}
 				SEC_FILTER_ARGS+=("${args[@]}")
@@ -748,20 +748,19 @@ function prepare_secondary_filter {
 
 					for i in "${!SEC_FILTER_INDICES[@]}"; do
 						args=("${SEC_FILTER_ARGS[@]:${SEC_FILTER_INDICES[i]}:${SEC_FILTER_LENGTHS[i]}}")
-						pid=${SEC_FILTER_PIDS[i]}
+						pid=${SEC_FILTER_PIDS[i]-}
 
-						if [[ ${#args[@]} -gt 0 ]]; then
+						if [[ ${args+.} ]]; then
 							for i in $(pgrep "${args[@]}"); do
-								[[ -z ${pid} || ${pid} == "$i" ]] && pids[i]=$i
+								[[ -z ${pid} || ${pid} == "$i" ]] && pids[i]=.
 							done
-						else
-							i=${pid}
-							[[ -n $i ]] && pids[i]=$i
+						elif [[ ${pid} ]]; then
+							pids[pid]=.
 						fi
 					done
 
 					for i; do
-						[[ -n ${pids[i]} ]] && __A0+=("$i")
+						[[ ${pids[i]+.} ]] && __A0+=("$i")
 					done
 				fi
 			}
@@ -779,12 +778,13 @@ function prepare_tertiary_filter {
 		local id pgrep_opts=() target args
 
 		for (( id = TER_GLOBAL_ID; id <= LAST_TER_TARGET_ID; ++id )); do
-			[[ -n ${TARGETS[id]+.} ]] && target=("${TARGETS[id]}") || target=()
+			target=()
+			[[ ${TARGETS[id]+.} ]] && target[0]=${TARGETS[id]}
 			get_pgrep_opts "${id}" @ter
 			pgrep_opts=("${__A0[@]}")
 
-			if [[ ${target} == +([[:digit:]]) ]]; then
-				if [[ ${target} == "${SELF}" ]]; then
+			if [[ ${target-} == +([[:digit:]]) ]]; then
+				if [[ ${target-} == "${SELF}" ]]; then
 					warn_excluding_self
 				else
 					args=("${pgrep_opts[@]}")
@@ -793,10 +793,10 @@ function prepare_tertiary_filter {
 					TER_FILTER_PIDS[TER_FILTER_ID++]=${target}
 					TER_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ -n ${target} || (${#pgrep_opts[@]} -gt 0 && (id -gt TER_GLOBAL_ID || \
+			elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt TER_GLOBAL_ID || \
 					LAST_TER_TARGET_ID -eq 0)) ]]; then
 				args=("${pgrep_opts[@]}")
-				[[ ${#target[@]} -gt 0 ]] && args+=(-- "${target[@]}")
+				[[ ${target+.} ]] && args+=(-- "${target[@]}")
 				TER_FILTER_INDICES[TER_FILTER_ID]=${#TER_FILTER_ARGS[@]}
 				TER_FILTER_LENGTHS[TER_FILTER_ID++]=${#args[@]}
 				TER_FILTER_ARGS+=("${args[@]}")
@@ -813,20 +813,19 @@ function prepare_tertiary_filter {
 
 				for i in "${!TER_FILTER_INDICES[@]}"; do
 					args=("${TER_FILTER_ARGS[@]:${TER_FILTER_INDICES[i]}:${TER_FILTER_LENGTHS[i]}}")
-					pid=${TER_FILTER_PIDS[i]}
+					pid=${TER_FILTER_PIDS[i]-}
 
-					if [[ ${#args[@]} -gt 0 ]]; then
+					if [[ ${args+.} ]]; then
 						for i in $(pgrep "${args[@]}"); do
-							[[ -z ${pid} || ${pid} == "$i" ]] && pids[i]=$i
+							[[ -z ${pid} || ${pid} == "$i" ]] && pids[i]=.
 						done
-					else
-						i=${pid}
-						[[ -n $i ]] && pids[i]=$i
+					elif [[ ${pid} ]]; then
+						pids[pid]=.
 					fi
 				done
 
 				for i; do
-					[[ -n ${pids[i]} ]] && __A0+=("$i")
+					[[ ${pids[i]+.} ]] && __A0+=("$i")
 				done
 			fi
 		}
@@ -835,7 +834,7 @@ function prepare_tertiary_filter {
 			__A0=("$@")
 		}
 	fi
-}
+}	
 
 function get_process_cmd {
 	CMD=
@@ -972,7 +971,7 @@ function parse_tertiary_args {
 		else
 			case $1 in
 			--)
-				while shift; [[ $# -gt 0 ]]; do
+				while shift; [[ ${1+.} ]]; do
 					[[ $1 == // ]] && fail "Unexpected third use of '//'."
 					parse_target_expr "$1"
 					LAST_TER_TARGET_ID=${TARGET_ID}
@@ -1010,7 +1009,7 @@ function parse_secondary_args {
 		else
 			case $1 in
 			--)
-				while shift; [[ $# -gt 0 ]]; do
+				while shift; [[ ${1+.} ]]; do
 					[[ $1 == // ]] && continue 2
 					parse_target_expr "$1"
 					LAST_SEC_TARGET_ID=${TARGET_ID}
@@ -1118,7 +1117,7 @@ function main {
 				return 2
 				;;
 			--)
-				while shift; [[ $# -gt 0 ]]; do
+				while shift; [[ ${1+.} ]]; do
 					[[ $1 == // ]] && continue 2
 					parse_target_expr "$1"
 					LAST_PRI_TARGET_ID=${TARGET_ID}
