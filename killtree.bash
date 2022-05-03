@@ -206,6 +206,7 @@ TER_FILTER_INDICES=()
 TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
+VERBOSE=false
 VERSION=2022.05.04
 
 function show_help_info {
@@ -613,10 +614,10 @@ function get_pgrep_opts {
 	local id=$1 gid=0
 	__A0=()
 
-	if [[ $2 == @sec ]]; then
+	if [[ ${2-} == @sec ]]; then
 		[[ LAST_SEC_TARGET_ID -gt 0 ]] && return 1
 		gid=${SEC_GLOBAL_ID}
-	elif [[ $2 == @ter ]]; then
+	elif [[ ${2-} == @ter ]]; then
 		[[ LAST_TER_TARGET_ID -gt 0 ]] && return 1
 		gid=${TER_GLOBAL_ID}
 	fi
@@ -624,15 +625,15 @@ function get_pgrep_opts {
 	if [[ id -eq gid ]]; then
 		set -- "${id}"
 		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[id]}" && __A0+=(--exact)
+				"${FILTER_EXACT[id]-}" && __A0+=(--exact)
 		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[id]}" && __A0+=(--ignore-case)
+				"${FILTER_IGNORE_CASE[id]-}" && __A0+=(--ignore-case)
 	else
 		set -- "${gid}" "${id}"
 		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[gid]}" "${FILTER_EXACT[id]}" && __A0+=(--exact)
+				"${FILTER_EXACT[gid]-}" "${FILTER_EXACT[id]-}" && __A0+=(--exact)
 		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[gid]}" "${FILTER_IGNORE_CASE[id]}" && __A0+=(--ignore-case)
+				"${FILTER_IGNORE_CASE[gid]-}" "${FILTER_IGNORE_CASE[id]-}" && __A0+=(--ignore-case)
 	fi
 
 	get_merged_list FILTER_EUIDS "$@" && __A0+=(--euid="$__")
