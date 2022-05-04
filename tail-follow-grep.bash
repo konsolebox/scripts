@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2022.05.03
+VERSION=2022.05.05
 
 shopt -s extglob && set +o posix || exit
 
@@ -89,7 +89,7 @@ Notes:
     To filter out more than one matches, use '|' on an expression with extended
     regex or Perl regex enabled.
   - Expression flags can be 'E', 'F', 'G', 'P', 'l', 'i', or 'w'.
-    They allow option behavior to work specifically on the expression." >&2
+    They allow option behavior to work specifically on the expression."
 }
 
 function get_opt_and_optarg {
