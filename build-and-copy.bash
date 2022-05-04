@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 3, 2022
+# May 5, 2022
 
 # ----------------------------------------------------------
 
@@ -29,8 +29,8 @@ fi
 shopt -so pipefail || fail "Failed to enable pipefail."
 
 function show_usage_and_exit {
-	echo "Usage: $0 [-r|--kernel-release <release>] [-m|--copy-modules]" >&2
-	exit 1
+	echo "Usage: $0 [-r|--kernel-release <release>] [-m|--copy-modules]"
+	exit 2
 }
 
 function fail {
