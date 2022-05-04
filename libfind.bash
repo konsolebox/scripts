@@ -69,7 +69,7 @@ Modifiers:
                     can co-exist with other expression type options.
 
 Others:
-  -e                Imply that the following argument is an expression.
+  -e EXPR           Treat following argument as an expression.
   -h, --help        Show this help info.
   -V, --version     Show version.
 
