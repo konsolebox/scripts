@@ -14,11 +14,11 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2021
+# May 5, 2022
 
 # ----------------------------------------------------------------------
 
-VERSION=2021.05.14
+VERSION=2022.05.5
 
 [ -n "${BASH_VERSION}" ] && [[ BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
@@ -157,6 +157,22 @@ function fail {
 	exit 1
 }
 
+function get_opt_and_optarg {
+	OPT=$1 OPTARG= OPTSHIFT=0
+
+	if [[ $1 == -[!-]?* ]]; then
+		OPT=${1:0:2} OPTARG=${1:2}
+	elif [[ $1 == --*=* ]]; then
+		OPT=${1%%=*} OPTARG=${1#*=}
+	elif [[ ${2+.} ]]; then
+		OPTARG=$2 OPTSHIFT=1
+	else
+		return 1
+	fi
+
+	return 0
+}
+
 function main {
 	local case_sensitive=false expressions=() mode=default use_or_add_common_paths=false __
 
@@ -191,10 +207,10 @@ function main {
 		-s)
 			case_sensitive=true
 			;;
-		-e)
-			shift
-			[[ $# -eq 0 ]] && error "No argument follows -e."
-			expressions+=("$1")
+		-e*)
+			get_opt_and_optarg "${@:1:2}" || fail "No argument follows -e."
+			expressions+=("${OPTARG}")
+			shift "${OPTSHIFT}"
 			;;
 		-h|--help)
 			show_help_info
@@ -208,7 +224,11 @@ function main {
 			expressions+=("${@:2}")
 			break
 			;;
-		-*)
+		-[!-][!-]*)
+			set -- "${1:0:2}" "-${1:2}" "${@:2}"
+			continue
+			;;
+		-?*)
 			fail "Invalid option: $1"
 			;;
 		*)
