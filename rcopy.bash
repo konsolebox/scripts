@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 3, 2022
+# May 5, 2022
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2022.05.03
+VERSION=2022.05.05
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -239,7 +239,7 @@ function main {
 		case $1 in
 		-h|--help)
 			show_help_info
-			exit 1
+			return 2
 			;;
 		-H|--hard-link)
 			CONFIG_HARD_LINK_MODE=true
@@ -260,7 +260,7 @@ function main {
 			;;
 		-V|--version)
 			echo "${VERSION}"
-			exit 1
+			return 2
 			;;
 		--)
 			shift
