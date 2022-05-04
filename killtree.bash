@@ -23,7 +23,7 @@ set -f +o posix && shopt -s extglob || exit 1
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 4, 2022
+# May 5, 2022
 #
 # ------------------------------------------------------------------------------
 
@@ -207,7 +207,7 @@ TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
 VERBOSE=false
-VERSION=2022.05.04
+VERSION=2022.05.05
 
 function show_help_info {
 	echo "killtree ${VERSION}
@@ -1073,7 +1073,7 @@ function main {
 				;;
 			-h|--help)
 				show_help_info
-				return 1
+				return 2
 				;;
 			-H|--ignore-sighup)
 				ignore_sighup=true
