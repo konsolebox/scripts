@@ -37,7 +37,7 @@
 
 shopt -s extglob || exit 1
 
-VERSION=2022.05.03
+VERSION=2022.05.05
 
 function show_warnings {
 	echo "WARNING: This tool does not guarantee functionality.
@@ -56,7 +56,7 @@ Options:
   -V, --version        Show version.
 "
 	show_warnings
-	exit 1
+	exit 2
 }
 
 function call {
@@ -85,7 +85,7 @@ function main {
 			;;
 		-V|--version)
 			echo "${VERSION}"
-			exit 1
+			return 2
 			;;
 		--)
 			args+=("${@:2}")
