@@ -43,13 +43,13 @@ instead.
 Usage: $0 [options] [-e] expression [[--] expression ...]
 
 Use of common paths:
-  -c                Search in common library directories instead of those
-                    specified in /etc/ld.so.conf.
+  -c                Search in common library directories instead of
+                    those specified in /etc/ld.so.conf.
   -C                Same as -c but adds the common library directories
                     into the list extracted from /etc/ld.so.conf.
 
-Glob-based Types:
-  -p, --path        Treat all expressions as keywords that would match
+Glob-based options:
+  -p, --path        Treat all expressions as keywords that will match
                     against the whole path and not just the filename.
   -x, --exact       Treat all expressions as exact glob patterns.  No
                     extra wildcard character is added before or after
@@ -57,32 +57,28 @@ Glob-based Types:
   -X, --exact-path  Same as -x, but the glob pattern applies with the
                     whole path, and not just the filename.
 
-Regex-based Types:
-      --awk         Treat all expressions as Awk regular expressions.
-      --egrep       Treat all expressions as egrep expressions.
-      --emacs       Treat all expressions as Emacs regular expressions.
-  -E, --extended    Treat all expressions as extended regular expressions.
-  -r, --regex       Treat all expressions as basic regular expressions.
+Regex-based options:
+      --awk       Treat all expressions as Awk regular expressions.
+      --egrep     Treat all expressions as egrep expressions.
+      --emacs     Treat all expressions as Emacs regular expressions.
+  -E, --extended  Treat all expressions as extended regular expressions.
+  -r, --regex     Treat all expressions as basic regular expressions.
 
 Modifiers:
-  -s                Treat all expressions as case sensitive.  This option
-                    can co-exist with other expression type options.
+  -s  Treat all expressions as case sensitive.  This option can co-exist
+      with other expression type options.
 
 Others:
-  -e EXPR           Treat following argument as an expression.
-  -h, --help        Show this help info.
-  -V, --version     Show version.
+  -e EXPR        Treat following argument as an expression.
+  -h, --help     Show this help info.
+  -V, --version  Show version.
 
 Notes:
-
-Only one of --awk, --egrep, --emacs, -E, -r, -p, -x and -X can become
-effective, and it would affect all expressions including the ones specified
-before them.
-
-Regex-based expression types rely on find's -regex so they match a whole
-pathname and not just a file's filename.
-
-When no expression type is specified, it defaults to glob patterns."
+  - Only one of --awk, --egrep, --emacs, -E, -r, -p, -x or -X can
+    become effective.
+  - Regex-based expression types rely on find's -regex so they match a
+    whole pathname and not just a file's filename.
+  - When no expression type is specified, it defaults to glob patterns."
 }
 
 function get_clean_path {
@@ -179,11 +175,11 @@ function main {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-c)
-			[[ ${use_or_add_common_paths} == add ]] && fail "Only one of -c and -C can be specified."
+			[[ ${use_or_add_common_paths} == add ]] && fail "Only one of -c or -C can be specified."
 			use_or_add_common_paths=use
 			;;
 		-C)
-			[[ ${use_or_add_common_paths} == use ]] && fail "Only one of -c and -C can be specified."
+			[[ ${use_or_add_common_paths} == use ]] && fail "Only one of -c or -C can be specified."
 			use_or_add_common_paths=add
 			;;
 		--awk|--egrep|--emacs)
@@ -214,11 +210,11 @@ function main {
 			;;
 		-h|--help)
 			show_help_info
-			exit 1
+			return 2
 			;;
 		-V|--version)
 			echo "${VERSION}"
-			exit 1
+			return 2
 			;;
 		--)
 			expressions+=("${@:2}")
