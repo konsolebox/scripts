@@ -75,7 +75,7 @@ Options:
   -V, --version          Show version and exit
   -X, --exclude pattern  Exclude filenames matching pattern when recursive
 
-Specified targets are not affected by -I or -X, nor require -d to be processed." >&2
+Specified targets are not affected by -I or -X, nor require -d to be processed."
 }
 
 function get_opt_and_optarg {
