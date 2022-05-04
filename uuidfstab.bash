@@ -13,7 +13,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 3, 2022
+# May 5, 2022
 
 # ----------------------------------------------------
 
@@ -24,7 +24,7 @@
 
 set -f +o posix || exit 1
 
-VERSION=2022.05.03
+VERSION=2022.05.05
 
 function log {
 	printf '%s\n' "$@" >&2
@@ -58,7 +58,7 @@ function main {
 		case $1 in
 		-V|--version)
 			log "${VERSION}"
-			exit 1
+			return 2
 			;;
 		-h|--help)
 			show_usage_and_exit
