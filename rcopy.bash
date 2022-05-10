@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 5, 2022
+# May 10, 2022
 
 # ----------------------------------------------------------
 
@@ -35,7 +35,7 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2022.05.05
+VERSION=2022.05.10
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
@@ -201,7 +201,7 @@ function process {
 			fail "Destination directory \"${dest_dir}\" already exists but is not a directory."
 		fi
 
-		if [[ -z ${PROCESSED[$__]} ]]; then
+		if [[ -z ${PROCESSED[$__]+.} ]]; then
 			if [[ ${CONFIG_HARD_LINK_MODE} == true ]]; then
 				log_message "Hard-linking \"$__\" to \"${dest_dir}/\"."
 				call cp "${CONFIG_CP_OPTS[@]}" -a -H -- "$__" "${dest_dir}/"
