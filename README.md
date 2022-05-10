@@ -10,6 +10,10 @@ Searches for binary files based on the value of `$PATH`.
 
 A script I use to automate building of initrd image.
 
+#### cd.bash
+
+A simple and convenient enhancement wrapper for cd.
+
 #### dnscrypt-proxy-multi.rb
 
 A Ruby script that runs multiple instances of dnscrypt-proxy.
