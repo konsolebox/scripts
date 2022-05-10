@@ -14,11 +14,11 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 5, 2022
+# May 10, 2022
 
 # ----------------------------------------------------------------------
 
-VERSION=2022.05.5
+VERSION=2022.05.10
 
 [ -n "${BASH_VERSION}" ] && [[ BASH_VERSINFO -ge 4 ]] || {
 	echo "This script requires Bash version 4.0 or newer." >&2
@@ -118,7 +118,7 @@ function get_lib_paths {
 
 	local file=$1
 
-	if [[ -z ${LD_CONF_HASH[${file}]} && -f ${file} && -r ${file} ]]; then
+	if [[ -z ${LD_CONF_HASH[${file}]+.} && -f ${file} && -r ${file} ]]; then
 		LD_CONF_HASH[${file}]=.
 
 		while read -r __; do
@@ -261,7 +261,7 @@ function main {
 	local -A hash=()
 
 	for __ in "${LIB_PATHS[@]}"; do
-		if [[ $__ != *([[:blank:]]) && -z ${hash[$__]} && -d $__ && -r $__ && -x $__ ]]; then
+		if [[ $__ != *([[:blank:]]) && -z ${hash[$__]+.} && -d $__ && -r $__ && -x $__ ]]; then
 			lib_paths_filtered+=("$__")
 			hash[$__]=.
 		fi
