@@ -258,12 +258,12 @@ function main {
 	fi
 
 	local lib_paths_filtered=()
-	local -A hash=()
+	local -A reg=()
 
 	for __ in "${LIB_PATHS[@]}"; do
-		if [[ $__ != *([[:blank:]]) && -z ${hash[$__]+.} && -d $__ && -r $__ && -x $__ ]]; then
+		if [[ $__ != *([[:blank:]]) && -z ${reg[$__]+.} && -d $__ && -r $__ && -x $__ ]]; then
 			lib_paths_filtered+=("$__")
-			hash[$__]=.
+			reg[$__]=.
 		fi
 	done
 
