@@ -1,7 +1,8 @@
 #!/bin/bash
 
-[ -n "${BASH_VERSION}" ] || {
-	echo "This script requires Bash."
+[ -n "${BASH_VERSION}" ] && \
+		eval '[[ BASH_VERSINFO -ge 4 || (BASH_VERSINFO -eq 3 && BASH_VERSINFO[1] -ge 2) ]]' || {
+	echo "This script requires Bash version 3.2 or newer to run." >&2
 	exit 1
 }
 
@@ -23,7 +24,7 @@ set -f +o posix && shopt -s extglob || exit 1
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 5, 2022
+# May 12, 2022
 #
 # ------------------------------------------------------------------------------
 
@@ -184,7 +185,7 @@ FILTER_PGROUPS=()
 FILTER_SESSION=()
 FILTER_TERMINAL=()
 FILTER_UIDS=()
-HAS_GEN_FILTERS=()
+HAS_GEN_FILTERS=false
 IFS=$' \t\r\n'
 INITIAL_TARGET_PIDS=()
 LAST_PRI_TARGET_ID=0
@@ -207,7 +208,7 @@ TER_FILTER_LENGTHS=()
 TER_FILTER_PIDS=()
 TER_GLOBAL_ID=0
 VERBOSE=false
-VERSION=2022.05.05
+VERSION=2022.05.12
 
 function show_help_info {
 	echo "killtree ${VERSION}
@@ -233,10 +234,9 @@ Basic Options:
                        '--simultaneous' and '--union'.
   -h, --help           Show this help message and exit.
   -H, --ignore-sighup  Catch SIGHUP signal and ignore it.
-  -P, --pretend        Do no actually send signals.  It's sensible to use it
-                       with '--verbose'.
+  -P, --pretend        Do no actually send signals.  Useful with '--verbose'.
   -q, --quiet          Do not show warnings and info.  It negates verbose mode.
-  -s, --signal signal  Specify the signal to be sent to every process.
+  -s, --signal signal  Specify the signal to send to every process.
                        The default is SIGTERM.
   -<signal>            Shortcut version of '-s'.  Signal can only be numeric.
   -v, --verbose        Show verbose messages.  It negates quiet mode.
@@ -554,7 +554,7 @@ function parse_filter_opts {
 		;;
 	esac
 
-	[[ ${HAS_ARG} == true && SEC_GLOBAL_ID -eq 0 ]] && HAS_GEN_FILTERS[id]=true
+	[[ SEC_GLOBAL_ID -eq 0 && ${HAS_ARG} == true ]] && HAS_GEN_FILTERS=true
 	return 0
 }
 
@@ -582,32 +582,25 @@ function parse_target_expr {
 }
 
 function get_merged_list {
-	local var=$1 a i r temp= IFS=,
+	local var=$1 all= unique= IFS=,
 	shift
 
-	for i; do
-		r=${var}[$i]
-		temp+=,${!r}
+	for __; do
+		__=${var}[$__]
+		[[ ${!__-} ]] && all+=,${!__}
 	done
 
-	__=
-
-	for a in ${temp#,}; do
-		[[ $a && ,$__, != *,"$a",* ]] && __+=,$a
+	for __ in ${all#,}; do
+		[[ $__ && ${unique}, != *,"$__",* ]] && unique+=,$__
 	done
 
-	__=${__#,}
+	__=${unique#,}
 	[[ $__ ]]
 }
 
 function is_effectively_true {
-	local effective __
-
-	for __; do
-		[[ $__ ]] && effective=$__
-	done
-
-	[[ ${effective} == true ]]
+	local IFS=,
+	[[ ,"$*" == *,true*(,) ]]
 }
 
 function get_pgrep_opts {
@@ -615,10 +608,10 @@ function get_pgrep_opts {
 	__A0=()
 
 	if [[ ${2-} == @sec ]]; then
-		[[ LAST_SEC_TARGET_ID -gt 0 ]] && return 1
+		[[ LAST_SEC_TARGET_ID -eq 0 ]] && return 1
 		gid=${SEC_GLOBAL_ID}
 	elif [[ ${2-} == @ter ]]; then
-		[[ LAST_TER_TARGET_ID -gt 0 ]] && return 1
+		[[ LAST_TER_TARGET_ID -eq 0 ]] && return 1
 		gid=${TER_GLOBAL_ID}
 	fi
 
@@ -675,7 +668,7 @@ function collect_initial_targets {
 			if [[ (${#__A0[@]} -eq 0 && ${quiet} == false) || ${VERBOSE} == true ]]; then
 				if [[ ${target+.} && ${pgrep_opts+.} ]]; then
 					phrase="pattern '${target}' and pgrep options '${pgrep_opts[*]}'"
-				elif [[ ${target} ]]; then
+				elif [[ ${target+.} ]]; then
 					phrase="pattern '${target}'"
 				else
 					phrase="pgrep option(s) '${pgrep_opts[*]}'"
@@ -697,7 +690,7 @@ function collect_initial_targets {
 	fi
 
 	for id in "${target_pids[@]}"; do
-		if [[ -z ${reg[id]} ]]; then
+		if [[ -z ${reg[id]+.} ]]; then
 			INITIAL_TARGET_PIDS+=("${id}")
 			reg[id]=.
 		fi
@@ -711,8 +704,7 @@ function prepare_secondary_filter {
 		local id pgrep_opts=() target args index
 
 		for (( id = SEC_GLOBAL_ID; id <= LAST_SEC_TARGET_ID; ++id )); do
-			target=()
-			[[ ${TARGETS[id]+.} ]] && target[0]=${TARGETS[id]}
+			[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 			get_pgrep_opts "${id}" @sec
 			pgrep_opts=("${__A0[@]}")
 
@@ -779,13 +771,12 @@ function prepare_tertiary_filter {
 		local id pgrep_opts=() target args
 
 		for (( id = TER_GLOBAL_ID; id <= LAST_TER_TARGET_ID; ++id )); do
-			target=()
-			[[ ${TARGETS[id]+.} ]] && target[0]=${TARGETS[id]}
+			[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 			get_pgrep_opts "${id}" @ter
 			pgrep_opts=("${__A0[@]}")
 
 			if [[ ${target-} == +([[:digit:]]) ]]; then
-				if [[ ${target-} == "${SELF}" ]]; then
+				if [[ ${target} == "${SELF}" ]]; then
 					warn_excluding_self
 				else
 					args=("${pgrep_opts[@]}")
@@ -835,7 +826,7 @@ function prepare_tertiary_filter {
 			__A0=("$@")
 		}
 	fi
-}	
+}
 
 function get_process_cmd {
 	CMD=
@@ -872,7 +863,8 @@ function ask_for_yn {
 }
 
 function ask_send_sig {
-	local signal=$1 CMD; shift
+	local signal=$1 CMD __
+	shift
 
 	if [[ $# -eq 0 ]]; then
 		return 1
@@ -909,7 +901,7 @@ function setup_kill_function {
 
 				for __ in "${__A0[@]}"; do
 					ask_send_sig "$2" "$__" || continue
-					log_verbose "Sending $2 to:" "$__"
+					log_verbose "Sending $2 to: $__"
 					[[ ${PRETEND} != true ]] && builtin kill -s "$2" "$__"
 				done
 			}
@@ -919,7 +911,7 @@ function setup_kill_function {
 				do_tertiary_filter "${__A0[@]}"
 
 				if [[ ${#__A0[@]} -gt 0 ]] && ask_send_sig "$2" "${__A0[@]}"; then
-					log_verbose "Sending $2 to:" "${__A0[@]}"
+					log_verbose "Sending $2 to: ${__A0[*]}"
 					[[ ${PRETEND} != true ]] && builtin kill -s "$2" "${__A0[@]}"
 				fi
 			}
@@ -929,7 +921,7 @@ function setup_kill_function {
 				do_tertiary_filter "${__A0[@]}"
 
 				if [[ ${#__A0[@]} -gt 0 ]]; then
-					log_verbose "Sending $2 to:" "${__A0[@]}"
+					log_verbose "Sending $2 to: ${__A0[*]}"
 					[[ ${PRETEND} != true ]] && builtin kill -s "$2" "${__A0[@]}"
 				fi
 			}
@@ -978,8 +970,8 @@ function parse_tertiary_args {
 					LAST_TER_TARGET_ID=${TARGET_ID}
 				done
 				;;
-			-*)
-				fail "Invalid or unexpected option '$1'."
+			-?*)
+				fail "Invalid or unexpected option: $1"
 				;;
 			//)
 				fail "Unexpected third use of '//'."
@@ -1016,8 +1008,8 @@ function parse_secondary_args {
 					LAST_SEC_TARGET_ID=${TARGET_ID}
 				done
 				;;
-			-*)
-				fail "Invalid or unexpected option '$1'."
+			-?*)
+				fail "Invalid or unexpected option: $1"
 				;;
 			+(/))
 				fail "Invalid argument: $1"
@@ -1129,6 +1121,7 @@ function main {
 				;;
 			-[!-][!-]*)
 				set -- "${1:0:2}" "-${1:2}" "${@:2}"
+				continue
 				;;
 			-?*)
 				fail "Invalid option: $1"
@@ -1153,14 +1146,14 @@ function main {
 			fail "Option '--ask-once' can only be used in 'simultaneous' or 'unify' strategy mode."
 	fi
 
-	if [[ (${ASK} == true || ${ASK_ONCE} == true) && ! -d /proc/$$ ]]; then
-		if type -P uname >/dev/null && [[ $(uname -r) == Linux ]]; then
+	if [[ ${ASK} == true || ${ASK_ONCE} == true ]]; then
+		[[ -t 0 ]] || fail "Input needs to be terminal when ask mode is enabled."
+		[[ ! -d /proc/$$ ]] && type -P uname >/dev/null && [[ $(uname -r) == Linux ]] && \
 			log_warning "Procfs (/proc) is needed to resolve PIDs to command names."
-		fi
 	fi
 
-	[[ LAST_PRI_TARGET_ID -gt 0 || ${#HAS_GEN_FILTERS[@]} -gt 0 ]] ||  \
-		fail "No target or target-generating filters specified.  Run with '--help' for usage info."
+	[[ LAST_PRI_TARGET_ID -gt 0 || ${HAS_GEN_FILTERS} == true ]] || \
+		fail "No target or target-generating filters specified." "Run with '--help' for usage info."
 
 	[[ ${VERBOSE} == true ]] || function log_verbose { :; }
 
@@ -1169,9 +1162,11 @@ function main {
 		function log_warning { :; }
 	fi
 
+	log_verbose "Killtree started."
+	[[ ${PRETEND} == true ]] && log_verbose "Pretend mode enabled."
 	[[ ${ignore_sighup} == true ]] && trap : SIGHUP
 	collect_initial_targets || return 1
-	log_verbose "Initial targets: ${INITIAL_TARGET_PIDS[@]}"
+	log_verbose "Initial targets: ${INITIAL_TARGET_PIDS[*]}"
 	log_verbose "Self: ${SELF}"
 	prepare_secondary_filter
 	prepare_tertiary_filter
@@ -1185,7 +1180,7 @@ function main {
 			"${func}" "$__" "${signal}"
 
 			for __ in "${!list_ref}"; do
-				if [[ -z ${reg[$__]} ]]; then
+				if [[ -z ${reg[$__]+.} ]]; then
 					list[i++]=$__
 					reg[$__]=.
 				fi
