@@ -605,54 +605,48 @@ function is_effectively_true {
 
 function get_pgrep_opts {
 	local id=$1 gid=0
-	__A0=()
+	PGREP_OPTS=() PGREP_MOD_OPTS=()
 
 	if [[ ${2-} == @sec ]]; then
-		[[ LAST_SEC_TARGET_ID -eq 0 ]] && return 1
 		gid=${SEC_GLOBAL_ID}
 	elif [[ ${2-} == @ter ]]; then
-		[[ LAST_TER_TARGET_ID -eq 0 ]] && return 1
 		gid=${TER_GLOBAL_ID}
 	fi
 
-	if [[ id -eq gid ]]; then
-		set -- "${id}"
-		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[id]-}" && __A0+=(--exact)
-		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[id]-}" && __A0+=(--ignore-case)
-	else
+	if [[ id -ne gid ]]; then
 		set -- "${gid}" "${id}"
-		is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" \
-				"${FILTER_EXACT[gid]-}" "${FILTER_EXACT[id]-}" && __A0+=(--exact)
-		is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
-				"${FILTER_IGNORE_CASE[gid]-}" "${FILTER_IGNORE_CASE[id]-}" && __A0+=(--ignore-case)
+	else
+		set -- "${id}"
 	fi
 
-	get_merged_list FILTER_EUIDS "$@" && __A0+=(--euid="$__")
-	get_merged_list FILTER_GROUPS "$@" && __A0+=(--group="$__")
-	get_merged_list FILTER_NSLIST "$@"&& __A0+=(--nslist="$__")
-	get_merged_list FILTER_NS "$@" && __A0+=(--ns="$__")
-	get_merged_list FILTER_PGROUPS "$@" && __A0+=(--pgroup="$__")
-	get_merged_list FILTER_SESSION "$@" && __A0+=(--session="$__")
-	get_merged_list FILTER_TERMINAL "$@" && __A0+=(--terminal="$__")
-	get_merged_list FILTER_UIDS "$@" && __A0+=(--uid="$__")
-	[[ ${#__A0[@]} -gt 0 ]]
+	get_merged_list FILTER_EUIDS "$@" && PGREP_OPTS+=(--euid="$__")
+	get_merged_list FILTER_GROUPS "$@" && PGREP_OPTS+=(--group="$__")
+	get_merged_list FILTER_NSLIST "$@"&& PGREP_OPTS+=(--nslist="$__")
+	get_merged_list FILTER_NS "$@" && PGREP_OPTS+=(--ns="$__")
+	get_merged_list FILTER_PGROUPS "$@" && PGREP_OPTS+=(--pgroup="$__")
+	get_merged_list FILTER_SESSION "$@" && PGREP_OPTS+=(--session="$__")
+	get_merged_list FILTER_TERMINAL "$@" && PGREP_OPTS+=(--terminal="$__")
+	get_merged_list FILTER_UIDS "$@" && PGREP_OPTS+=(--uid="$__")
+
+	is_effectively_true "${FILTER_EXACT_DEFAULT}" "${FILTER_EXACT_SUPER}" "${FILTER_EXACT[gid]-}" \
+			"${FILTER_EXACT[id]-}" && PGREP_MOD_OPTS+=(--exact)
+	is_effectively_true "${FILTER_IGNORE_CASE_DEFAULT}" "${FILTER_IGNORE_CASE_SUPER}" \
+			"${FILTER_IGNORE_CASE[gid]-}" "${FILTER_IGNORE_CASE[id]-}" && \
+			PGREP_MOD_OPTS+=(--ignore-case)
 }
 
 function collect_initial_targets {
-	local id pgrep_opts=() phrase pids target target_pids=() reg=() pid
+	local id PGREP_OPTS phrase pids target target_pids=() reg=() opts=() pid
 
 	for (( id = 0; id <= LAST_PRI_TARGET_ID; ++id )); do
 		[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 		get_pgrep_opts "${id}"
-		pgrep_opts=("${__A0[@]}")
 
 		if [[ ${target-} == +([[:digit:]]) ]]; then
 			if [[ ${target} == "${SELF}" ]]; then
 				warn_excluding_self
-			elif [[ ${pgrep_opts+.} ]]; then
-				for pid in $(pgrep "${pgrep_opts[@]}"); do
+			elif [[ ${PGREP_OPTS+.} ]]; then
+				for pid in $(pgrep "${PGREP_OPTS[@]}"); do
 					if [[ ${target} == "${pid}" ]]; then
 						target_pids+=("${target}")
 						break
@@ -661,17 +655,18 @@ function collect_initial_targets {
 			else
 				target_pids+=("${target}")
 			fi
-		elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt 0 || LAST_PRI_TARGET_ID -eq 0)) ]]; then
-			pids=($(pgrep "${pgrep_opts[@]}" -- "${target[@]}"))
+		elif [[ ${target+.} || ${PGREP_OPTS+.} && (id -gt 0 || LAST_PRI_TARGET_ID -eq 0) ]]; then
+			opts=("${PGREP_OPTS[@]}" "${PGREP_MOD_OPTS[@]}")
+			pids=($(pgrep "${opts[@]}" -- "${target[@]}"))
 			exclude_self "${pids[@]}"
 
 			if [[ (${#__A0[@]} -eq 0 && ${quiet} == false) || ${VERBOSE} == true ]]; then
-				if [[ ${target+.} && ${pgrep_opts+.} ]]; then
-					phrase="pattern '${target}' and pgrep options '${pgrep_opts[*]}'"
+				if [[ ${target+.} && ${opts+.} ]]; then
+					phrase="pattern '${target}' and pgrep options '${opts[*]}'"
 				elif [[ ${target+.} ]]; then
 					phrase="pattern '${target}'"
 				else
-					phrase="pgrep option(s) '${pgrep_opts[*]}'"
+					phrase="pgrep option(s) '${opts[*]}'"
 				fi
 			fi
 
@@ -701,27 +696,25 @@ function collect_initial_targets {
 
 function prepare_secondary_filter {
 	if [[ SEC_GLOBAL_ID -gt 0 ]]; then
-		local id pgrep_opts=() target args index
+		local id PGREP_OPTS target args index
 
-		for (( id = SEC_GLOBAL_ID; id <= LAST_SEC_TARGET_ID; ++id )); do
+		for (( id = SEC_GLOBAL_ID; (id == SEC_GLOBAL_ID || id <= LAST_SEC_TARGET_ID); ++id )); do
 			[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 			get_pgrep_opts "${id}" @sec
-			pgrep_opts=("${__A0[@]}")
 
 			if [[ ${target-} == +([[:digit:]]) ]]; then
 				if [[ ${target} == "${SELF}" ]]; then
 					warn_excluding_self
 				else
-					args=("${pgrep_opts[@]}")
+					args=("${PGREP_OPTS[@]}")
 					SEC_FILTER_INDICES[SEC_FILTER_ID]=${#SEC_FILTER_ARGS[@]}
 					SEC_FILTER_LENGTHS[SEC_FILTER_ID]=${#args[@]}
 					SEC_FILTER_PIDS[SEC_FILTER_ID++]=${target}
 					SEC_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt SEC_GLOBAL_ID || \
-					LAST_SEC_TARGET_ID -eq 0)) ]]; then
-				args=("${pgrep_opts[@]}")
-				[[ ${target+.} ]] && args+=(-- "${target[@]}")
+			elif [[ ${target+.} || ${PGREP_OPTS+.} && (id -gt SEC_GLOBAL_ID || \
+					LAST_SEC_TARGET_ID -eq 0) ]]; then
+				args=("${PGREP_OPTS[@]}" "${PGREP_MOD_OPTS[@]}" -- "${target[@]}")
 				SEC_FILTER_INDICES[SEC_FILTER_ID]=${#SEC_FILTER_ARGS[@]}
 				SEC_FILTER_LENGTHS[SEC_FILTER_ID++]=${#args[@]}
 				SEC_FILTER_ARGS+=("${args[@]}")
@@ -768,27 +761,25 @@ function prepare_secondary_filter {
 
 function prepare_tertiary_filter {
 	if [[ TER_GLOBAL_ID -gt 0 ]]; then
-		local id pgrep_opts=() target args
+		local id PGREP_OPTS target args
 
-		for (( id = TER_GLOBAL_ID; id <= LAST_TER_TARGET_ID; ++id )); do
+		for (( id = TER_GLOBAL_ID; id == TER_GLOBAL_ID || id <= LAST_TER_TARGET_ID; ++id )); do
 			[[ ${TARGETS[id]+.} ]] && target=${TARGETS[id]} || target=()
 			get_pgrep_opts "${id}" @ter
-			pgrep_opts=("${__A0[@]}")
 
 			if [[ ${target-} == +([[:digit:]]) ]]; then
 				if [[ ${target} == "${SELF}" ]]; then
 					warn_excluding_self
 				else
-					args=("${pgrep_opts[@]}")
+					args=("${PGREP_OPTS[@]}")
 					TER_FILTER_INDICES[TER_FILTER_ID]=${#TER_FILTER_ARGS[@]}
 					TER_FILTER_LENGTHS[TER_FILTER_ID]=${#args[@]}
 					TER_FILTER_PIDS[TER_FILTER_ID++]=${target}
 					TER_FILTER_ARGS+=("${args[@]}")
 				fi
-			elif [[ ${target+.} || (${pgrep_opts+.} && (id -gt TER_GLOBAL_ID || \
-					LAST_TER_TARGET_ID -eq 0)) ]]; then
-				args=("${pgrep_opts[@]}")
-				[[ ${target+.} ]] && args+=(-- "${target[@]}")
+			elif [[ ${target+.} || ${PGREP_OPTS+.} && (id -gt TER_GLOBAL_ID || \
+					LAST_TER_TARGET_ID -eq 0) ]]; then
+				args=("${PGREP_OPTS[@]}" "${PGREP_MOD_OPTS[@]}" -- "${target[@]}")
 				TER_FILTER_INDICES[TER_FILTER_ID]=${#TER_FILTER_ARGS[@]}
 				TER_FILTER_LENGTHS[TER_FILTER_ID++]=${#args[@]}
 				TER_FILTER_ARGS+=("${args[@]}")
