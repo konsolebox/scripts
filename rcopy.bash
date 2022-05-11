@@ -15,7 +15,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 10, 2022
+# May 11, 2022
 
 # ----------------------------------------------------------
 
@@ -35,14 +35,14 @@ CONFIG_QUIET=false
 
 declare -A PROCESSED=()
 
-VERSION=2022.05.10
+VERSION=2022.05.11
 
 function log_message {
 	[[ ${CONFIG_QUIET} == false ]] && echo "rcopy: $1"
 }
 
 function log_warning {
-	echo "rcopy: Warning: $1"
+	echo "rcopy: Warning: $1" >&2
 }
 
 function log_verbose {
@@ -50,7 +50,7 @@ function log_verbose {
 }
 
 function log_error {
-	echo "rcopy: Error: $1"
+	echo "rcopy: Error: $1" >&2
 }
 
 function fail {
