@@ -721,11 +721,11 @@ function prepare_secondary_filter {
 			fi
 		done
 
-		if [[ ${#SEC_FILTER_INDICES[@]} -eq 1 ]]; then
+		if [[ ${#SEC_FILTER_INDICES[@]} -eq 0 ]]; then
 			function list_children {
 				CHILDREN=($(pgrep -P "$1"))
 			}
-		elif [[ ${#SEC_FILTER_INDICES[@]} -gt 1 ]]; then
+		else
 			function do_secondary_filter {
 				__A0=()
 
