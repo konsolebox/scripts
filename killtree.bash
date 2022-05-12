@@ -458,23 +458,14 @@ function exclude_self {
 }
 
 function get_opt_and_optarg {
-	local optional=false
-
-	if [[ $1 == @optional ]]; then
-		optional=true
-		shift
-	fi
-
 	OPT=$1 OPTARG= OPTSHIFT=0
 
 	if [[ $1 == -[!-]?* ]]; then
 		OPT=${1:0:2} OPTARG=${1:2}
 	elif [[ $1 == --*=* ]]; then
 		OPT=${1%%=*} OPTARG=${1#*=}
-	elif [[ ${2+.} && (${optional} == false || $2 != -?*) ]]; then
+	elif [[ ${2+.} ]]; then
 		OPTARG=$2 OPTSHIFT=1
-	elif [[ ${optional} == true ]]; then
-		return 1
 	else
 		fail "No argument specified for '$1'."
 	fi
