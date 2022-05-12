@@ -725,6 +725,18 @@ function prepare_secondary_filter {
 			function list_children {
 				CHILDREN=($(pgrep -P "$1"))
 			}
+		elif [[ ${#SEC_FILTER_INDICES[@]} -eq 1 ]]; then
+			function list_children {
+				local i=${!SEC_FILTER_INDICES[*]} args pid
+				args=("${SEC_FILTER_ARGS[@]:${SEC_FILTER_INDICES[i]}:${SEC_FILTER_LENGTHS[i]}}")
+				pid=${SEC_FILTER_PIDS[i]-}
+				declare -p args
+				CHILDREN=($(pgrep -P "$1" "${args[@]}"))
+
+				if [[ ${pid} ]]; then
+					[[ " ${CHILDREN[*]} " == *" ${pid} "* ]] && CHILDREN=("${pid}") || CHILDREN=()
+				fi
+			}
 		else
 			function do_secondary_filter {
 				__A0=()
