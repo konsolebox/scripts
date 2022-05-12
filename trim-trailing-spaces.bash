@@ -36,7 +36,7 @@
 BACKUP_FILES=false
 TRIMMED_COUNT=0
 TRIMMING_STARTED=false
-VERSION=2022.05.03
+VERSION=2022.05.12
 
 function show_summary {
 	if [[ TRIMMED_COUNT -gt 1 ]]; then
@@ -52,7 +52,7 @@ function fail {
 	printf '%s\n' "$1" >&2
 
 	if [[ ${TRIMMING_STARTED} == true ]]; then
-		echo "Immediately exiting due to failure." >&2
+		echo "Exiting immediately due to failure." >&2
 		show_summary >&2
 	fi
 
