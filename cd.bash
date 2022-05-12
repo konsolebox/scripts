@@ -11,7 +11,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 10, 2022
+# May 13, 2022
 #
 # ----------------------------------------------------------------------
 
@@ -37,26 +37,26 @@ function cd {
 
 	set -- "${args[@]}"
 
-	if [[ $# -eq 0 ]]; then
-		builtin cd -P "${opts[@]}" || return
-	elif [[ $# -gt 1 ]]; then
-		echo "Too many directory arguments specified." >&2
-	elif [[ $1 == - && ${#DIRSTACK[@]} -gt 0 ]]; then
-		if builtin cd -P "${opts[@]}" -- "${DIRSTACK[@]:(-1)}"; then
+	if [[ $# -gt 1 ]]; then
+		echo "Too many directory argmuments specified." >&2
+	elif [[ ${1-} == - && ${#DIRSTACK[@]} -ge 2 ]]; then
+		if builtin cd -P "${opts[@]}" -- "${DIRSTACK[1]}"; then
 			popd -n > /dev/null
-		else
-			echo "Run 'popd -n' to exclude directory from the stack if it has issues." >&2
+			return 0
 		fi
 
-		return
-	elif [[ $1 == . ]]; then
-		builtin cd -P "${opts[@]}" -- "${PWD}" || return
-		[[ ${#DIRSTACK[@]} -gt 0 ]] && popd -n > /dev/null
+		echo "Run 'popd -n' to exclude directory from the stack if it has issues." >&2
 	else
-		builtin cd -P "${opts[@]}" -- "$1" || return
+		pushd -n -- "${PWD}" > /dev/null
+		[[ ${1-} == . ]] && set -- "${PWD}"
+
+		if builtin cd -P "${opts[@]}" -- "${@}"; then
+			[[ ${DIRSTACK[0]} == "${DIRSTACK[1]}" ]] && popd -n > /dev/null
+			return 0
+		fi
+
+		popd -n > /dev/null
 	fi
 
-	if [[ ${#DIRSTACK[@]} -eq 0 || ${PWD} != "${DIRSTACK[@]:(-1)}" ]]; then
-		pushd -n -- "${PWD}" > /dev/null
-	fi
+	return 1
 }
