@@ -37,26 +37,28 @@ function cd {
 
 	set -- "${args[@]}"
 
-	if [[ $# -gt 1 ]]; then
-		echo "Too many directory argmuments specified." >&2
-	elif [[ ${1-} == - && ${#DIRSTACK[@]} -ge 2 ]]; then
-		if builtin cd -P "${opts[@]}" -- "${DIRSTACK[1]}"; then
-			popd -n > /dev/null
-			return 0
+	{
+		if [[ $# -gt 1 ]]; then
+			echo "Too many directory argmuments specified." >&2
+		elif [[ ${1-} == - && ${#DIRSTACK[@]} -ge 2 ]]; then
+			if builtin cd -P "${opts[@]}" -- "${DIRSTACK[1]}"; then
+				popd -n
+				return 0
+			fi
+
+			echo "Run 'popd -n' to exclude directory from the stack if it has issues." >&2
+		else
+			pushd -n -- "${PWD}"
+			[[ ${1-} == . ]] && set -- "${PWD}"
+
+			if builtin cd -P "${opts[@]}" -- "${@}"; then
+				[[ ${DIRSTACK[0]} == "${DIRSTACK[1]}" ]] && popd -n
+				return 0
+			fi
+
+			popd -n
 		fi
-
-		echo "Run 'popd -n' to exclude directory from the stack if it has issues." >&2
-	else
-		pushd -n -- "${PWD}" > /dev/null
-		[[ ${1-} == . ]] && set -- "${PWD}"
-
-		if builtin cd -P "${opts[@]}" -- "${@}"; then
-			[[ ${DIRSTACK[0]} == "${DIRSTACK[1]}" ]] && popd -n > /dev/null
-			return 0
-		fi
-
-		popd -n > /dev/null
-	fi
+	} > /dev/null
 
 	return 1
 }
