@@ -24,8 +24,9 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 	declare -gA _RAKE_COMP_OPT_CACHE=()
 	declare -gA _RAKE_COMP_TASK_CACHE=()
 	declare -gA _RAKE_COMP_TASK_CACHE_TS=()
-	_RAKE_COMP_USE_STATIC_OPTS=${_RAKE_COMP_USE_STATIC_OPTS-false}
 	_RAKE_COMP_CACHE_TASKS=${_RAKE_COMP_CACHE_TASKS-true}
+	_RAKE_COMP_USE_STATIC_OPTS=${_RAKE_COMP_USE_STATIC_OPTS-false}
+	_RAKE_COMP_WARN_WORDBREAKS_HAS_COLON=${_RAKE_COMP_WARN_WORDBREAKS_HAS_COLON-true}
 	_RAKE_PATH=
 
 	if false; then
@@ -278,6 +279,9 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 		_RAKE_PATH=$(type -p rake) && [[ ${_RAKE_PATH} ]] || return
 		COMPREPLY=()
 
+		[[ ${_RAKE_COMP_WARN_WORDBREAKS_HAS_COLON} == true && ${COMP_WORDBREAKS} == *:* ]] && \
+			printf "\nWarning: COMP_WORDBREAKS has ':'.\n" >&2
+
 		if _rake_comp_past_double_dash; then
 			_rake_comp_generate_filename_replies "$2" || dont_add_space=true
 		elif _rake_comp_try_get_opt_with_arg opt arg prefix; then
@@ -317,6 +321,11 @@ if [[ BASH_VERSINFO -ge 5 ]]; then
 	# contrib/git-completion.bash.
 	#
 	# Comment out the following line if the conflict needs to be avoided.
+	#
+	# It will however break completion of tasks having ':' in their names.
+	#
+	# _RAKE_COMP_WARN_WORDBREAKS_HAS_COLON also needs to be set to 'false'
+	# to disable warning about COMP_WORDBREAKS having a ':'.
 	#
 	COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
