@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Feb. 17, 2022
+# May 25, 2022
 
 # ----------------------------------------------------------
 
@@ -36,7 +36,7 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2022.02.17'
+VERSION = '2022.05.25'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
@@ -1156,6 +1156,8 @@ def main
       r = Process.waitall
       @exit_status = 0 if r.is_a?(Array) and r.all?{ |a| a.last.exitstatus == 0 }
     end
+  rescue SystemExit
+    raise
   rescue Interrupt
     log_message "SIGINT caught."
     stop_instances unless @pids.empty?
