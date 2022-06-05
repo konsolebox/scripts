@@ -6,7 +6,7 @@
 #
 # Basically a wrapper for 'tail -f' and 'grep --line-buffered'
 #
-# Usage: tailgrep[.bash] [options] -e expr ... [--] file ...
+# Usage: tail-follow-grep[.bash] [options] -e expr ... [--] file ...
 #
 # This tool requires GNU versions of tail and grep, any version of cat.
 #
@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2022.05.05
+VERSION=2022.06.05
 
 shopt -s extglob && set +o posix || exit
 
