@@ -1160,9 +1160,9 @@ def main
   rescue Interrupt
     log_message "SIGINT caught."
     stop_instances unless @pids.empty?
-  rescue Exception => e
-    log_error "Unknown exception with message '#{e.message}' caught."
-    log_error "Exception class: #{e.class}"
+  rescue Exception => ex
+    log_error "Unknown exception with message '#{ex.message}' caught."
+    log_error "Exception class: #{ex.class}"
     stop_instances unless @pids.empty?
   ensure
     log_message "Exiting."
