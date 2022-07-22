@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 25, 2022
+# July 22, 2022
 
 # ----------------------------------------------------------
 
@@ -36,11 +36,14 @@ require 'resolv'
 require 'socket'
 require 'timeout'
 
-VERSION = '2022.05.25'
+module Net
+  autoload :Ping, 'net/ping'
+end
+
+VERSION = '2022.07.22'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
-WAIT_FOR_CONNECTION_NETUNREACH_PAUSE = 1
-WAIT_FOR_CONNECTION_FAILED_ICMP_PING_PAUSE = 1
+WAIT_FOR_CONNECTION_PAUSE = 1
 DEFAULT_PORT = 443
 
 HEADER_MAP = {
@@ -144,8 +147,11 @@ def log_verbose(msg)
   log(msg, false, :info) if @params.verbose
 end
 
-def log_debug
-  log('[Debug] ' + msg, false, :debug) if @params.debug
+def log_debug(msg = nil)
+  if @params.debug
+    msg = yield if block_given?
+    log('[Debug] ' + msg.to_s, false, :debug)
+  end
 end
 
 def fail(msg)
@@ -212,18 +218,12 @@ def which(cmd)
   nil
 end
 
-def check_tcp_port(ip, port, seconds = 1)
-  Timeout::timeout(seconds) do
-    begin
-      start = Time.now
-      TCPSocket.new(ip, port).close
-      Time.now - start
-    rescue SystemCallError
-      nil
-    end
+def check_tcp_port(ip, port, timeout_in_seconds)
+  Timeout::timeout(timeout_in_seconds) do
+    start = Time.now
+    TCPSocket.new(ip, port).close
+    Time.now - start
   end
-rescue Timeout::Error
-  nil
 end
 
 def executable_file?(path)
@@ -265,18 +265,17 @@ def wait_for_connection
     @params.wait_for_connection.each do |host, port|
       begin
         if port
-          begin
-            return if check_tcp_port(host, port, WAIT_FOR_CONNECTION_TIMEOUT)
-          rescue SocketError => ex
-            fail "Failed to wait for connection: #{ex.message}"
-          end
+          return if check_tcp_port(host, port, WAIT_FOR_CONNECTION_TIMEOUT)
         else
           return if Net::Ping::ICMP.new(host, WAIT_FOR_CONNECTION_TIMEOUT).ping
-          sleep WAIT_FOR_CONNECTION_FAILED_ICMP_PING_PAUSE
         end
-      rescue Errno::ENETUNREACH
-        sleep WAIT_FOR_CONNECTION_NETUNREACH_PAUSE
+      rescue SocketError => ex
+        fail "Socket error exception caught while attempting to wait for connection: #{ex.message}"
+      rescue SystemCallError, Timeout::Error => ex
+        log_debug{ "Caught '#{ex.class}' exception while waiting for connection: #{ex.message}" }
       end
+
+      sleep WAIT_FOR_CONNECTION_PAUSE
     end
   end
 end
@@ -1017,7 +1016,7 @@ def main
         log_verbose "Timeout is #{@params.port_check_timeout}."
 
         threads << Thread.new(e) do |e|
-          e.latency = check_tcp_port(e.resolver_ip, e.resolver_port, @params.port_check_timeout)
+          e.latency = check_tcp_port(e.resolver_ip, e.resolver_port, @params.port_check_timeout) rescue nil
         end
       end
 
