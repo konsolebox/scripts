@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 5, 2022
+# Feb. 8, 2023
 
 # ----------------------------------------------------------
 
@@ -38,18 +38,6 @@ function fail {
 	exit 1
 }
 
-function get_real_current_dir {
-	__=
-
-	if type -P realpath > /dev/null; then
-		__=$(realpath "${PWD}") && [[ -n $__ ]] && return 0
-	elif type -P readlink > /dev/null; then
-		__=$(readlink -f "${PWD}") && [[ -n $__ ]] && return 0
-	fi
-
-	return 1
-}
-
 function get_opt_and_optarg {
 	OPT=$1 OPTARG= OPTSHIFT=0
 
@@ -68,9 +56,10 @@ function get_opt_and_optarg {
 
 function main {
 	local copy_modules=false create_modules_list=false do_backup=true \
-			kernel_release= __
-	get_real_current_dir || fail "Failed to get real current directory."
-	[[ $__ == / ]] && fail 'Refusing to run in /.'
+			kernel_release= real_current_dir __
+
+	real_current_dir=$(pwd -P) || fail "Failed to get real current directory."
+	[[ ${real_current_dir} == / ]] && fail "Refusing to run in /."
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
