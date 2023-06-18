@@ -12,7 +12,7 @@
 # To use this tool, the gem 'digest-kangarootwelve' should also be
 # installed.
 #
-# Copyright © 2022 konsolebox
+# Copyright © 2023 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files
@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2022.10.30"
+VERSION          = "2023.06.19"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
@@ -121,14 +121,17 @@ end
 
 def rename_dir(source, dest)
   dest_base = File.basename(dest)
-  log_message "[DIR] #{source} -> #{dest_base}"
 
   if File.exists?(dest)
+    log_message "[DIR] #{source} => #{dest_base}"
+
     begin
       FileUtils.rm_r(dest)
     rescue SystemCallError => ex
       raise "Failed to remove file or directory \"#{ex.message}\": #{ex.message}"
     end
+  else
+    log_message "[DIR] #{source} -> #{dest_base}"
   end
 
   begin
@@ -236,14 +239,17 @@ end
 
 def rename_file(source, dest)
   dest_base = File.basename(dest)
-  log_message "[FILE] #{source} -> #{dest_base}"
 
   if File.exists?(dest)
+    log_message "[FILE] #{source} => #{dest_base}"
+
     begin
       FileUtils.rm_r(dest)
     rescue SystemCallError => ex
       raise "Failed to remove file or directory \"#{dest}\": #{ex.message}"
     end
+  else
+    log_message "[FILE] #{source} -> #{dest_base}"
   end
 
   begin
