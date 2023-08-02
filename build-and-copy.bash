@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Feb. 8, 2023
+# Aug. 2, 2023
 
 # ----------------------------------------------------------
 
@@ -26,16 +26,33 @@ if [ -z "${BASH_VERSION}" ]; then
 	exit 1
 fi
 
-shopt -so pipefail || fail "Failed to enable pipefail."
-
 function show_usage_and_exit {
-	echo "Usage: $0 [-r|--kernel-release <release>] [-m|--copy-modules]"
+	echo "Creates an initrd image using files in current directory, saves it to parent
+directory, and copies it to /boot
+
+Usage: $0 [options]
+
+Important Options:
+  -r, --kernel-release RELEASE  Specify kernel's release name.  If this is
+                                omitted, the output of 'uname -r' is used.
+  -m, --copy-modules            Copy /lib/modules/RELEASE to lib/modules before
+                                creating the image
+
+Other Options:
+  -l, --create-modules-list     Create a 'modules_list' file which will contain
+                                a list of modules in 'lib/modules'
+  -n|--no-backup                Do not create a backup of initrd file in /boot
+                                before overriding it
+  -h, --help                    Show this usage info and exit
+
+The 'lib/modules' directory and the 'modules_list' file always get deleted
+before any operation."
 	exit 2
 }
 
 function fail {
-	echo "$1" >&2
-	exit 1
+	printf '%s\n' "$1" >&2
+	exit "${2-1}"
 }
 
 function get_opt_and_optarg {
@@ -53,6 +70,8 @@ function get_opt_and_optarg {
 
 	return 0
 }
+
+shopt -so pipefail || fail "Failed to enable pipefail."
 
 function main {
 	local copy_modules=false create_modules_list=false do_backup=true \
@@ -85,7 +104,7 @@ function main {
 			continue
 			;;
 		*)
-			fail "Invalid argument: $1"
+			fail "Invalid argument: $1" 2
 			;;
 		esac
 
@@ -93,7 +112,7 @@ function main {
 	done
 
 	[[ ${create_modules_list} == true && ${copy_modules} == false ]] && \
-		fail "Create modules list option requires copy modules option."
+		fail "Create-modules-list option requires copy-modules option."
 
 	if [[ -z ${kernel_release} ]]; then
 		kernel_release=$(uname -r) && [[ -n ${kernel_release} ]] || \
