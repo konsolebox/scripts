@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2023.06.19"
+VERSION          = "2023.08.04"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
@@ -122,7 +122,7 @@ end
 def rename_dir(source, dest)
   dest_base = File.basename(dest)
 
-  if File.exists?(dest)
+  if File.exist?(dest)
     log_message "[DIR] #{source} => #{dest_base}"
 
     begin
@@ -147,7 +147,7 @@ end
 def rename_dir_congruently(source, dest_prefix)
   for i in 0.. do
     dest = sprintf("%s-%04x", dest_prefix, i)
-    break unless File.exists?(dest)
+    break unless File.exist?(dest)
   end
 
   dest_base = File.basename(dest)
@@ -213,7 +213,7 @@ def process_dir(dir)
       return
     end
 
-    if !File.exists?(proper_form)
+    if !File.exist?(proper_form)
       rename_dir(dir, proper_form)
     elsif target?(proper_form) && !@results_map.has_key?(proper_form)
       if base_congruent_form?(base) &&
@@ -226,7 +226,7 @@ def process_dir(dir)
 
       process [proper_form]
 
-      if !File.exists?(proper_form) || @options.replace_directories && File.directory?(proper_form)
+      if !File.exist?(proper_form) || @options.replace_directories && File.directory?(proper_form)
         rename_dir(dir, proper_form)
       end
     elsif @options.replace_directories && File.directory?(proper_form)
@@ -240,7 +240,7 @@ end
 def rename_file(source, dest)
   dest_base = File.basename(dest)
 
-  if File.exists?(dest)
+  if File.exist?(dest)
     log_message "[FILE] #{source} => #{dest_base}"
 
     begin
@@ -265,7 +265,7 @@ end
 def rename_file_congruently(source, dest_prefix, dest_suffix)
   for i in 0.. do
     dest = sprintf("%s-%04x%s", dest_prefix, i, dest_suffix)
-    break unless File.exists?(dest)
+    break unless File.exist?(dest)
   end
 
   dest_base = File.basename(dest)
@@ -328,7 +328,7 @@ def process_file(file)
     return true
   end
 
-  if !File.exists?(proper_form)
+  if !File.exist?(proper_form)
     rename_file(file, proper_form)
   elsif target?(proper_form) && !@results_map.has_key?(proper_form)
     if base_congruent_form?(no_ext, @options.prefix) &&
@@ -341,7 +341,7 @@ def process_file(file)
 
     process [proper_form]
 
-    if !File.exists?(proper_form) || replace_with_file?(proper_form, file)
+    if !File.exist?(proper_form) || replace_with_file?(proper_form, file)
       rename_file(file, proper_form)
     end
   elsif replace_with_file?(proper_form, file)
