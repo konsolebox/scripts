@@ -29,10 +29,6 @@ The script waits for all instances to exit before it
 exits.  It also automaticaly stops them when it receives
 SIGTERM or SIGINT.
 
-#### gdb-completion.bash
-
-A completion script for gdb.
-
 #### getabspath/*
 
 Scripts that implement getabspath() for various shells.  getabspath() is
@@ -74,10 +70,6 @@ Searches for manual pages based on `$MANPATH`.
 
 This tool maps partitions in a block device to logical devices using
 dmsetup and sfdisk.
-
-#### rake-completion.bash
-
-A completion script for rake.
 
 #### rcopy.bash
 
