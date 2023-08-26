@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2023.08.04"
+VERSION          = "2023.08.26"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
@@ -93,13 +93,13 @@ end
 
 def base_hashed_form?(form, prefix)
   @base_hashed_form_regex ||= Regexp.new("^#{Regexp.escape(prefix)}[0-9a-f]{#{digest_hex_size}}$")
-  @base_hashed_form_regex.match?(form)
+  @base_hashed_form_regex =~ form
 end
 
 def base_congruent_form?(form, prefix)
   @base_congruent_form_regex ||= Regexp.new("^#{Regexp.escape(prefix)}[0-9a-f]" \
       "{#{digest_hex_size}}-[0-9a-f]{4,}$")
-  @base_congruent_form_regex.match?(form)
+  @base_congruent_form_regex =~ form
 end
 
 def target?(path)
@@ -145,7 +145,7 @@ def rename_dir(source, dest)
 end
 
 def rename_dir_congruently(source, dest_prefix)
-  for i in 0.. do
+  for i in 0..Float::INFINITY do
     dest = sprintf("%s-%04x", dest_prefix, i)
     break unless File.exist?(dest)
   end
@@ -263,7 +263,7 @@ def rename_file(source, dest)
 end
 
 def rename_file_congruently(source, dest_prefix, dest_suffix)
-  for i in 0.. do
+  for i in 0..Float::INFINITY do
     dest = sprintf("%s-%04x%s", dest_prefix, i, dest_suffix)
     break unless File.exist?(dest)
   end
@@ -397,7 +397,7 @@ def main
   base = File.basename($0) rescue nil
 
   if base && base =~ /^xn[[:digit:]]+$/
-    @options.bit_size = @cmd_bit_size = parse_bit_size(base[2..])
+    @options.bit_size = @cmd_bit_size = parse_bit_size(base[2..-1])
     @cmd_name = base
   end
 
