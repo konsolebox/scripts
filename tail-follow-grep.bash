@@ -10,7 +10,7 @@
 #
 # This tool requires GNU versions of tail and grep, any version of cat.
 #
-# Copyright (c) 2022 konsolebox
+# Copyright (c) 2023 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2022.06.05
+VERSION=2023.08.28
 
 shopt -s extglob && set +o posix || exit
 
@@ -111,7 +111,7 @@ function get_opt_and_optarg {
 	elif [[ ${optional} == true ]]; then
 		return 1
 	else
-		fail "No argument specified for '$1'."
+		fail "No argument specified for '$1'." 2
 	fi
 
 	return 0
@@ -134,13 +134,13 @@ function main {
 		-[eIX]*)
 			get_opt_and_optarg "${@:1:2}"
 			shift "${OPTSHIFT}"
-			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty."
+			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty." 2
 			expressions+=("${OPTARG}")
 			expr_opts+=("${OPT}")
 
 			if [[ ${2-} == @* ]]; then
 				flags=${2#?} invalid_flags=${flags//[EFGPliw]}
-				[[ ${invalid_flags} ]] && fail "Invalid flags specified: ${invalid_flags}"
+				[[ ${invalid_flags} ]] && fail "Invalid flags specified: ${invalid_flags}" 2
 				expr_flags+=("${flags}")
 				shift
 			else
@@ -178,7 +178,7 @@ function main {
 		-[cmnps]*|--@(bytes|max-unchanged-stats|lines|pid|sleep-interval)?(=*))
 			get_opt_and_optarg "${@:1:2}"
 			shift "${OPTSHIFT}"
-			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty."
+			[[ ${OPTARG} ]] || fail "Argument for '${OPT}' can't be empty." 2
 			[[ ${OPT} == -m ]] && OPT=--max-unchanged-stats
 			[[ ${OPT} == -p ]] && OPT=--pid
 			tail_opts+=("${OPT}" "${OPTARG}")
@@ -203,11 +203,11 @@ function main {
 				fi
 
 				[[ ${final_limit} =~ ^\+?[0-9]+$ ]] || \
-					fail "Invalid limit value argument for '${OPT}': ${final_limit}"
+					fail "Invalid limit value argument for '${OPT}': ${final_limit}" 2
 				[[ ${final_limit} =~ ^\+[0-9]+$ && ${OPTARG} == *,* ]] && \
-					fail "No point specifying timeout argument while specifying +N argument to '${OPT}': ${OPTARG}"
+					fail "No point specifying timeout argument while specifying +N argument to '${OPT}': ${OPTARG}" 2
 				[[ ${timeout} =~ ^[0-9]+$ && timeout -gt 0 ]] || \
-					fail "Invalid timeout value argument for '${OPT}': ${timeout}"
+					fail "Invalid timeout value argument for '${OPT}': ${timeout}" 2
 			fi
 
 			tail_opts+=(--lines=+1)
@@ -229,7 +229,7 @@ function main {
 			continue
 			;;
 		-?*)
-			fail "Invalid option: $1"
+			fail "Invalid option: $1" 2
 			;;
 		*)
 			files+=("$1")
@@ -239,8 +239,8 @@ function main {
 		shift
 	done
 
-	[[ ${#files[@]} -gt 0 ]] || fail "No files were specified."
-	[[ ${#expressions[@]} -gt 0 ]] || fail "No expressions were specified."
+	[[ ${#files[@]} -gt 0 ]] || fail "No files were specified." 2
+	[[ ${#expressions[@]} -gt 0 ]] || fail "No expressions were specified." 2
 	printf -v 'cmds[0]' '%q ' tail "${z_opt[@]}" "${tail_opts[@]}" -- "${files[@]}"
 
 	for i in "${!expressions[@]}"; do
