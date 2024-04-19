@@ -10,7 +10,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 14, 2021
+# Apr. 17, 2024
 
 # ----------------------------------------------------------
 
@@ -38,8 +38,8 @@ function main {
 		[[ -n $__ && ":${paths[*]}:" != *":$__:"* ]] && paths[i++]=$__
 	done
 
-	[[ ${#paths[@]} -gt 0 ]] && find "${paths[@]}" -maxdepth 2 -xtype f -regex '.*/man[^/]+/.*' \
-		"${args[@]}" 2>/dev/null
+	[[ ${#paths[@]} -gt 0 ]] && \
+		find "${paths[@]}" -maxdepth 2 -xtype f -regex '.*/man[^/]+/.*' "${args[@]}"
 }
 
 main "$@"
