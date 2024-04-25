@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 29, 2023
+# Apr. 25, 2024
 
 # Credits (Thanks to)
 #
@@ -31,9 +31,9 @@
 	exit 1
 }
 
-set -f && set +o posix && set -o pipefail && shopt -s extglob || exit 1
+set -f && set +o posix && set -o pipefail && shopt -s assoc_expand_once extglob lastpipe || exit 1
 
-VERSION=2023.08.29
+VERSION=2024.04.25
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using files in current directory, saves it to parent
@@ -119,8 +119,8 @@ function with_opened_file {
 function get_module_files {
 	module_files=()
 	local modules_dir=$1 dep deps file ignore_inexistent=false exclude_softdeps=false mod
-	local -A modules_alias_map=() modules_builtin_map=() modules_dep_map=() modules_dep_reg=() \
-			modules_map=() modules_reg=() modules_softdep_map=() specified=()
+	local -A modules_alias_map=() modules_builtin_reg=() modules_dep_map=() modules_dep_reg=() \
+			modules_map=() modules_map_rev=() modules_reg=() modules_softdep_map=() specified=()
 	shift
 
 	if [[ $1 == --exclude-softdeps ]]; then
@@ -137,8 +137,9 @@ function get_module_files {
 		local fd=$1 file mod
 
 		while read -ru "${fd}" file; do
-			mod=${file##*/} mod=${mod%.ko}
+			mod=${file##*/} mod=${mod%.ko} mod=${mod//_/-}
 			modules_map[${mod}]=${file}
+			modules_map_rev[${file}]=${mod}
 		done
 	'
 
@@ -146,7 +147,7 @@ function get_module_files {
 		local fd=$1 line
 
 		while read -ru "${fd}" -a line; do
-			[[ ${line} == alias ]] && modules_alias_map[${line[1]}]=${line[2]}
+			[[ ${line} == alias ]] && modules_alias_map[${line[1]//_/-}]=${line[2]//_/-}
 		done
 	'
 
@@ -154,22 +155,30 @@ function get_module_files {
 		local fd=$1 file mod
 
 		while read -ru "${fd}" file; do
-			mod=${file##*/} mod=${mod%.ko}
-			modules_builtin_map[${mod}]=${mod}
+			mod=${file##*/} mod=${mod%.ko} mod=${mod//_/-}
+			modules_builtin_reg[${mod}]=.
 		done
 	'
 
 	with_opened_file "${modules_dir}/modules.dep" '
-		local fd=$1 mod deps
+		local fd=$1 file deps
 
-		while read -ru "${fd}" mod deps; do
-			modules_dep_map[${mod%:}]=${deps}
+		while read -ru "${fd}" file deps; do
+			file=${file%:}
+			mod=${file##*/} mod=${mod%.ko} mod=${mod//_/-}
+
+			if [[ -z ${modules_map[${mod}]+.} ]]; then
+				modules_map[${mod}]=${file}
+				modules_map_rev[${file}]=${mod}
+			fi
+
+			modules_dep_map[${file}]=${deps}
 		done
 	'
 
 	if [[ ${exclude_softdeps} == false ]]; then
 		with_opened_file "${modules_dir}/modules.softdep" '
-			local fd=$1 line
+			local fd=$1 line mod deps
 
 			while read -ru "${fd}" -a line; do
 				if [[ ${line} == softdep ]]; then
@@ -177,36 +186,41 @@ function get_module_files {
 						[[ ${line[i]} == @(pre|post): ]] && unset "line[i]"
 					done
 
-					modules_softdep_map[${line[1]}]=${line[*]:2}
+					mod=${line[1]} line=("${line[@]:2}")
+					modules_softdep_map[${mod//_/-}]=${line[*]//_/-}
 				fi
 			done
 		'
 	fi
 
 	for mod; do
-		mod=${modules_alias_map[${mod}]-${mod}}
+		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${mod}}
 		specified[${mod}]=.
 	done
 
 	while mod=${1-}; shift; do
-		mod=${modules_alias_map[${mod}]-${mod}}
+		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${mod}}
 
 		if [[ -z ${modules_reg[${mod}]+.} ]]; then
 			modules_reg[${mod}]=.
-			deps=(${modules_dep_map[${mod}]-})
+			file=${modules_map[${mod}]-}
 
-			for dep in "${deps[@]}"; do
-				dep=${modules_alias_map[${dep}]-${dep}}
-				modules_dep_reg[${dep}]=.
-			done
+			if [[ ${file} ]]; then
+				for file in ${modules_dep_map[${file}]-}; do
+					dep=${modules_map_rev[${file}]-}
+					[[ ${dep} ]] || fail "Module file not mapped to a name: ${file}"
+					dep=${modules_alias_map[${dep}]-${dep}}
+					modules_dep_reg[${dep}]=.
+				done
 
-			[[ ${exclude_softdeps} == false ]] && deps+=(${modules_softdep_map[${mod}]-})
-			[[ ${deps+.} ]] && set -- "$@" "${deps[@]}"
+				[[ ${exclude_softdeps} == false ]] && deps+=(${modules_softdep_map[${mod}]-})
+				[[ ${deps+.} ]] && set -- "$@" "${deps[@]}"
+			fi
 		fi
 	done
 
 	for mod in "${!modules_reg[@]}"; do
-		if [[ -z ${modules_builtin_map[${mod}]+.} ]]; then
+		if [[ -z ${modules_builtin_reg[${mod}]+.} ]]; then
 			file=${modules_map[${mod}]-}
 
 			if [[ -z ${file} ]]; then
@@ -225,7 +239,7 @@ function get_module_files {
 function main {
 	local copy_modules=() copy_all_modules=false create_modules_list=false do_backup=true \
 			exclude_softdeps=false file IFS=$' \t\n' ignore_inexistent_modules=false \
-			kernel_release= mod module_files non_module_files=()
+			kernel_release= mod module_files module_files_sorted non_module_files=()
 
 	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
 
@@ -351,6 +365,8 @@ function main {
 				fail "No non-module files found in '/lib/modules/${kernel_release}'."
 
 			echo "Copying module files to 'lib/modules/${kernel_release}'."
+			printf '%s\n' "${module_files[@]##*/}" | sort | readarray -t module_files_sorted
+			printf 'Modules: %s\n' "${module_files_sorted[@]}"
 			printf '%s\0' "${module_files[@]}" "${non_module_files[@]}" | \
 					rsync -Ra --files-from=- -0 / . || fail "Failed to copy files using rsync."
 		fi
