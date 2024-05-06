@@ -29,6 +29,11 @@ The script waits for all instances to exit before it
 exits.  It also automaticaly stops them when it receives
 SIGTERM or SIGINT.
 
+#### hist.bash
+
+Simple script that finds matching entries in `~/.bash_history` using
+specified keywords
+
 #### getabspath/*
 
 Scripts that implement getabspath() for various shells.  getabspath() is
