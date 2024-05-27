@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2023.08.28
+VERSION=2024.05.27
 
 shopt -s extglob && set +o posix || exit
 
@@ -250,7 +250,7 @@ function main {
 		[[ ${flags} == *i* ]] && grep_opts+=i
 		[[ ${flags} == *w* ]] && grep_opts+=w
 		[[ ${flags} == *l* ]] && grep_opts+=x
-		[[ ${null} == true ]] && grep_opts+=zZ
+		[[ ${null} == true ]] && grep_opts+=z
 		printf -v "cmds[${#cmds[i]}]" '%q ' grep --line-buffered -"${grep_opts}e" \
 				"${expressions[i]}"
 	done
