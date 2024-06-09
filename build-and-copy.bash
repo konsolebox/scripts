@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Apr. 25, 2024
+# June 9, 2024
 
 # Credits (Thanks to)
 #
@@ -33,7 +33,7 @@
 
 set -f && set +o posix && set -o pipefail && shopt -s assoc_expand_once extglob lastpipe || exit 1
 
-VERSION=2024.04.25
+VERSION=2024.06.09
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using files in current directory, saves it to parent
@@ -59,6 +59,7 @@ Important Options:
   -z, --exclude-softdeps           Don't copy soft dependencies of modules
 
 Other Options:
+      --dry-run              Do not actually create anything.
   -l, --create-modules-list  Create a 'modules_list' file which will contain a
                              list of modules in 'lib/modules'
   -n, --no-backup            Do not create a backup of initrd file in /boot
@@ -74,6 +75,35 @@ before any operation."
 function fail {
 	printf '%s\n' "$1" >&2
 	exit "${2-1}"
+}
+
+function call {
+	local dry_run=false
+
+	if [[ ${1-} == --dry-run ]]; then
+		dry_run=true
+		shift
+	fi
+
+	if [[ ${_VERBOSE} == true ]]; then
+		local q msg= __
+
+		for __; do
+			printf -v q %q "$__"
+
+			if [[ $q == "$__" ]]; then
+				msg+=" $__"
+			elif [[ $__ == *\'* ]]; then
+				msg+=" $q"
+			else
+				msg+=" '$__'"
+			fi
+		done
+
+		printf '%s\n' "> ${msg# }" >&"${_CALL_MSG_FD}"
+	fi
+
+	[[ ${dry_run} == true ]] || command "$@"
 }
 
 function get_opt_and_optarg {
@@ -206,11 +236,13 @@ function get_module_files {
 			file=${modules_map[${mod}]-}
 
 			if [[ ${file} ]]; then
+				deps=()
+
 				for file in ${modules_dep_map[${file}]-}; do
 					dep=${modules_map_rev[${file}]-}
 					[[ ${dep} ]] || fail "Module file not mapped to a name: ${file}"
-					dep=${modules_alias_map[${dep}]-${dep}}
-					modules_dep_reg[${dep}]=.
+					deps+=("${dep}")
+					modules_dep_reg[${modules_alias_map[${dep}]-${dep}}]=.
 				done
 
 				[[ ${exclude_softdeps} == false ]] && deps+=(${modules_softdep_map[${mod}]-})
@@ -238,7 +270,7 @@ function get_module_files {
 
 function main {
 	local copy_modules=() copy_all_modules=false create_modules_list=false do_backup=true \
-			exclude_softdeps=false file IFS=$' \t\n' ignore_inexistent_modules=false \
+			dry_run=() exclude_softdeps=false file IFS=$' \t\n' ignore_inexistent_modules=false \
 			kernel_release= mod module_files module_files_sorted non_module_files=()
 
 	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
@@ -279,6 +311,9 @@ function main {
 		-n|--no-backup)
 			do_backup=false
 			;;
+		-N|--dry-run)
+			dry_run=(--dry-run)
+			;;
 		-r*|--kernel-release?(=*))
 			get_opt_and_optarg "${@:1:2}"
 			kernel_release=${OPTARG}
@@ -305,6 +340,8 @@ function main {
 
 		shift
 	done
+
+	[[ ${dry_run-} ]] && echo "Dry run enabled."
 
 	[[ ${create_modules_list} == true && ${copy_modules} == false ]] && \
 		fail "Create-modules-list option requires copy-modules option."
@@ -334,7 +371,8 @@ function main {
 	for file in lib/modules modules_list; do
 		if [[ -e ${file} ]]; then
 			echo "Deleting '${file}'."
-			rm -fr -- "${file}" && [[ ! -e ${file} ]] || fail "Failed to delete '${file}'."
+			call "${dry_run[@]}" rm -fr -- "${file}" && [[ ${dry_run-} || ! -e ${file} ]] || \
+				fail "Failed to delete '${file}'."
 		fi
 	done
 
@@ -345,13 +383,13 @@ function main {
 			fail "Modules directory '/lib/modules/${kernel_release}' does not exist."
 
 		if [[ ${copy_all_modules} == true ]]; then
-			mkdir -p lib/modules || fail "Failed to create 'lib/modules'."
+			call "${dry_run[@]}" mkdir -p lib/modules || fail "Failed to create 'lib/modules'."
 
 			echo "Copying '/lib/modules/${kernel_release}' to 'lib/modules'."
-			cp -a "/lib/modules/${kernel_release}" lib/modules/ || \
+			call "${dry_run[@]}" cp -a "/lib/modules/${kernel_release}" lib/modules/ || \
 				fail "Failed to copy '/lib/modules/${kernel_release}' to 'lib/modules'."
 		else
-			mkdir -p "lib/modules/${kernel_release}" || \
+			call "${dry_run[@]}" mkdir -p "lib/modules/${kernel_release}" || \
 				fail "Failed to create 'lib/modules/${kernel_release}'."
 
 			local opts=()
@@ -366,32 +404,43 @@ function main {
 
 			echo "Copying module files to 'lib/modules/${kernel_release}'."
 			printf '%s\n' "${module_files[@]##*/}" | sort | readarray -t module_files_sorted
-			printf 'Modules: %s\n' "${module_files_sorted[@]}"
-			printf '%s\0' "${module_files[@]}" "${non_module_files[@]}" | \
-					rsync -Ra --files-from=- -0 / . || fail "Failed to copy files using rsync."
+			printf 'Modules: %s\n' "${module_files_sorted[*]}"
+
+			if [[ -z ${dry_run-} ]]; then
+				printf '%s\0' "${module_files[@]}" "${non_module_files[@]}" | \
+						rsync -Ra --files-from=- -0 / . || fail "Failed to copy files using rsync."
+			fi
 		fi
 
 		if [[ ${create_modules_list} == true ]]; then
 			echo "Creating 'modules_list'."
-			find "/lib/modules/${kernel_release}" -name '*.ko' | \
-					gawk -F '[/.]' '{ print $(NF - 1) }' | sort -u > modules-list || \
-				fail "Failed to create 'modules-list'."
+
+			if [[ -z ${dry_run-} ]]; then
+				find "/lib/modules/${kernel_release}" -name '*.ko' | \
+						gawk -F '[/.]' '{ print $(NF - 1) }' | sort -u > modules-list || \
+					fail "Failed to create 'modules-list'."
+			fi
 		fi
 	fi
 
 	local build=initramfs-${kernel_release}
 	echo "Creating CPIO archive '../${build}'."
 
-	find . -name '.git*' -prune -o -print | sort | cpio -o -H newc | xz --check=none -z -f -9 -c > \
-			"../${build}" || fail "Failed to create CPIO archive '../${build}'."
+	if [[ -z ${dry_run-} ]]; then
+		find . -name '.git*' -prune -o -print | sort | cpio -o -H newc | \
+				xz --check=none -z -f -9 -c > "../${build}" || \
+			fail "Failed to create CPIO archive '../${build}'."
+	fi
 
 	if [[ ${do_backup} == true && -e /boot/${build} ]]; then
 		echo "Backing up '/boot/${build}' as '/boot/${build}.bak'."
-		cp -a "/boot/${build}"{,.bak} || fail "Failed to create '/boot/${build}.bak'."
+		call "${dry_run[@]}" cp -a "/boot/${build}"{,.bak} || \
+			fail "Failed to create '/boot/${build}.bak'."
 	fi
 
 	echo "Copying '../${build}' to '/boot/'."
-	cp -a "../${build}" "/boot/" || fail "Failed to copy '../${build}' to '/boot/'."
+	call "${dry_run[@]}" cp -a "../${build}" "/boot/" || \
+		fail "Failed to copy '../${build}' to '/boot/'."
 }
 
 main "$@"
