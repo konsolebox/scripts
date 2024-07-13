@@ -12,7 +12,7 @@
 # To use this tool, the gem 'digest-kangarootwelve' should also be
 # installed.
 #
-# Copyright © 2023 konsolebox
+# Copyright © 2024 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files
@@ -44,10 +44,11 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2023.08.26"
+VERSION          = "2024.07.13"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
+  :custom_string        => nil,
   :convert_to_lowercase => false,
   :one_extension        => false,
   :overwrite_diff_files => false,
@@ -81,6 +82,10 @@ end
 
 def log_verbose(msg)
   puts msg if @options.verbose
+end
+
+def digest
+  @digest ||= Digest::KangarooTwelve.implement(d: digest_size, c: @options.custom_string)
 end
 
 def digest_size
@@ -198,7 +203,7 @@ def process_dir(dir)
     begin
       seed = Dir.entries(dir).reject{ |e| e === '.' || e === '..' }.sort.map{ |e| e + "\n" }
           .join('')
-      sum = Digest::KangarooTwelve[digest_size].hexdigest(seed)
+      sum = digest.hexdigest(seed)
     rescue Interrupt
       raise
     rescue Exception => ex
@@ -312,7 +317,7 @@ def process_file(file)
   end
 
   begin
-    sum = Digest::KangarooTwelve[digest_size].file(file).hexdigest
+    sum = digest.file(file).hexdigest
   rescue Interrupt
     raise
   rescue Exception => ex
@@ -409,6 +414,10 @@ def main
     parser.on("-B", "--bit-size=BIT_SIZE",
         "Produce filenames based on a different bit size") do |bit_size_str|
       @options.bit_size = parse_bit_size(bit_size_str)
+    end
+
+    parser.on("-c", "--custom=CUSTOM_STRING", "Use customization string") do |str|
+      @options.custom_string = str
     end
 
     parser.on("-d", "--process-directories", "Process directories") do
