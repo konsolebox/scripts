@@ -8,7 +8,7 @@
 #
 # Usage: map-partitions[.bash] [options] target [name]
 #
-# Copyright (c) 2022 konsolebox
+# Copyright (c) 2024 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,12 @@
 
 shopt -s extglob || exit 1
 
-VERSION=2022.05.05
+VERSION=2024.08.04
+
+function die {
+	printf '%s\n' "$1" >&2
+	exit "${2-1}"
+}
 
 function show_warnings {
 	echo "WARNING: This tool does not guarantee functionality.
@@ -51,29 +56,45 @@ Maps partitions in a block device to logical devices using dmsetup and sfdisk
 Usage: $0 [options] target [name]
 
 Options:
-  -h, --help           Show this help info.
-  -H, --hide-warnings  Hide warnings.
-  -V, --version        Show version.
+  -h, --help           Show this help info
+  -H, --hide-warnings  Hide warnings
+  -n, --dry-run        Enable dry-run mode
+  -r, --remove         Remove mappings instead
+  -v, --verbose        Enable verbose mode
+                       Can be specified twice to increase verbosity.
+  -V, --version        Show version
 "
 	show_warnings
 	exit 2
 }
 
 function call {
-	local msg=() i=0 __
+	local dry_run=false q msg= __
+
+	if [[ ${1-} == --dry-run ]]; then
+		dry_run=true
+		shift
+	fi
 
 	for __; do
-		[[ $__ != +([[:alnum:]_\-=+,.:@]) ]] && __=\"${__//\"/\\\"}\"
-		msg[i++]=$__
+		printf -v q %q "$__"
+
+		if [[ $q == "$__" ]]; then
+			msg+=" $__"
+		elif [[ $__ == *\'* ]]; then
+			msg+=" $q"
+		else
+			msg+=" '$__'"
+		fi
 	done
 
-	printf '%s\n' "${msg[@]}"
-	"$@"
+	printf '%s\n' "> ${msg# }"
+	[[ ${dry_run} == true ]] || "$@"
 }
 
 function main {
 	local target name dev start_key start size_key size id_key id i __
-	local args=() hide_warnings=false
+	local args=() dry_run=() hide_warnings=false remove_mode=false sfdisk verbose=()
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
@@ -82,6 +103,15 @@ function main {
 			;;
 		-H|--hide-warning|--hide-warnings)
 			hide_warnings=true
+			;;
+		-n|--dry-run)
+			dry_run=(--dry-run)
+			;;
+		-r|--remove-mode)
+			remove_mode=true
+			;;
+		-v|--verbose)
+			verbose+=(-v)
 			;;
 		-V|--version)
 			echo "${VERSION}"
@@ -96,7 +126,7 @@ function main {
 			continue
 			;;
 		-?*)
-			echo "Invalid option: $1" >&2
+			die "Invalid option: $1"
 			exit 1
 			;;
 		*)
@@ -109,16 +139,33 @@ function main {
 
 	set -- "${args[@]}"
 	[[ $# -eq 1 || $# -eq 2 ]] || show_usage_and_exit
-	[[ ${hide_warnings} == true ]] || show_warnings >&2
+	sfdisk=$(type -P sfdisk) || die "sfdisk command not found."
+
+	if [[ ${hide_warnings} == false ]]; then
+		show_warnings >&2
+		echo >&2
+	fi
+
+	if [[ ${dry_run+.} ]]; then
+		echo "Dry run is enabled."
+		echo
+	fi
+
 	target=$1 name=${2-${1##*/}} i=1
 
 	while IFS=' :,=' read -ru 4 dev start_key start size_key size id_key id; do
 		if [[ ${start_key} == start && size -gt 0 ]]; then
-			call dmsetup create "${name}p${i}" --table "0 ${size} linear ${target} ${start}" || \
-				return 1
+			if [[ ${remove_mode} == true ]]; then
+				call "${dry_run[@]}" dmsetup "${verbose[@]}" remove "${name}p${i}" || return
+			else
+				call "${dry_run[@]}" dmsetup "${verbose[@]}" create "${name}p${i}" \
+						--table "0 ${size} linear ${target} ${start}" || \
+					return
+			fi
+
 			(( ++i ))
 		fi
-	done 4< <(exec sfdisk -df "${target}")
+	done 4< <(exec "${sfdisk}" -df "${target}")
 }
 
 main "$@"
