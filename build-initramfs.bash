@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 8, 2024
+# Aug. 9, 2024
 
 # Credits (Thanks to)
 #
@@ -35,7 +35,7 @@ set -f && set +o posix && set -o pipefail && shopt -s assoc_expand_once extglob 
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2024.08.08
+_VERSION=2024.08.09
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
@@ -63,10 +63,10 @@ Important Options:
   -z, --exclude-softdeps           Don't copy soft dependencies of modules
 
 Other Options:
-  -N, --dry-run              Do not actually create anything
   -l, --create-modules-list  Create a 'modules_list' file which will contain a
                              list of modules in 'lib/modules'
-  -n, --no-backup            Do not create a backup of initrd file in /boot
+  -n, --dry-run              Do not actually create anything
+  -N, --no-backup            Do not create a backup of initrd file in /boot
                              before overriding it
   -h, --help                 Show this usage info and exit
   -v, --verbose              Enable verbose mode
@@ -317,11 +317,11 @@ function main {
 
 			shift "${OPTSHIFT}"
 			;;
-		-n|--no-backup)
-			do_backup=false
+		-n|--dry-run)
+			_DRY_RUN=true
 			;;
-		-N|--dry-run)
-			_DRY_RUN=false
+		-N|--no-backup)
+			do_backup=false
 			;;
 		-r*|--kernel-release?(=*))
 			get_opt_and_optarg "${@:1:2}"
