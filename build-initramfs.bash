@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# ----------------------------------------------------------
+# ----------------------------------------------------------------------
 
-# build-and-copy.bash
+# build-initramfs.bash
 #
 # This script automates building of initrd image using the
-# files and directories in the current directory.
+# files and directories in the specified directory.
 #
 # It also accepts a '-m' option which makes it copy kernel
 # modules to 'lib/modules' before creating the image.
@@ -13,18 +13,18 @@
 # The initrd image is created in the parent directory and
 # then copied to /boot.
 #
-# Usage: [bash] ./build-and-copy.bash [options]
+# Usage: [bash] ./build-initramfs.bash dir [dest_dir] [options]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# June 9, 2024
+# Aug. 8, 2024
 
 # Credits (Thanks to)
 #
 # tirnanog - For the `find . -name '.git*' -prune -o -print`
 #            and `rsync -files-from=- -0` methods
 
-# ----------------------------------------------------------
+# ----------------------------------------------------------------------
 
 [ -n "${BASH_VERSION}" ] && [[ BASH_VERSINFO -ge 5 ]] || {
 	echo "This script requires Bash version 5 or newer to run." >&2
@@ -33,17 +33,21 @@
 
 set -f && set +o posix && set -o pipefail && shopt -s assoc_expand_once extglob lastpipe || exit 1
 
-VERSION=2024.06.09
+_DRY_RUN=false
+_VERBOSE=false
+_VERSION=2024.08.08
 
 function show_usage_and_exit {
-	echo "Creates an initrd image using files in current directory, saves it to parent
-directory, and copies it to /boot
+	echo "Creates an initrd image using the specified directory as root, saves
+it to the parent directory of the specified directory (unless destination
+directory is also specified), and copies it to /boot
 
-Usage: $0 [options]
+Usage: $0 dir [dest_dir] [options]
 
 Important Options:
   -r, --kernel-release RELEASE     Specify kernel's release name.  If this is
                                    omitted, the output of 'uname -r' is used.
+  -c, --copy-to-boot               Enables copying initrd image to /boot
   -m, --copy-modules [LIST]        Copy /lib/modules/RELEASE to lib/modules
                                    before creating the image.  A specific
                                    comma-separated list of modules can also be
@@ -59,12 +63,13 @@ Important Options:
   -z, --exclude-softdeps           Don't copy soft dependencies of modules
 
 Other Options:
-      --dry-run              Do not actually create anything.
+  -N, --dry-run              Do not actually create anything
   -l, --create-modules-list  Create a 'modules_list' file which will contain a
                              list of modules in 'lib/modules'
   -n, --no-backup            Do not create a backup of initrd file in /boot
                              before overriding it
   -h, --help                 Show this usage info and exit
+  -v, --verbose              Enable verbose mode
   -V, --version              Show version and exit
 
 The 'lib/modules' directory and the 'modules_list' file always get deleted
@@ -78,10 +83,10 @@ function fail {
 }
 
 function call {
-	local dry_run=false
+	local allow_dry_run=false
 
-	if [[ ${1-} == --dry-run ]]; then
-		dry_run=true
+	if [[ ${1-} == --allow-dry-run ]]; then
+		allow_dry_run=true
 		shift
 	fi
 
@@ -100,10 +105,10 @@ function call {
 			fi
 		done
 
-		printf '%s\n' "> ${msg# }" >&"${_CALL_MSG_FD}"
+		printf '%s\n' "> ${msg# }"
 	fi
 
-	[[ ${dry_run} == true ]] || command "$@"
+	[[ ${allow_dry_run} == true && ${_DRY_RUN} == true ]] || command "$@"
 }
 
 function get_opt_and_optarg {
@@ -269,14 +274,18 @@ function get_module_files {
 }
 
 function main {
-	local copy_modules=() copy_all_modules=false create_modules_list=false do_backup=true \
-			dry_run=() exclude_softdeps=false file IFS=$' \t\n' ignore_inexistent_modules=false \
-			kernel_release= mod module_files module_files_sorted non_module_files=()
+	local copy_modules=() copy_all_modules=false copy_to_boot=false create_modules_list=false \
+			do_backup=true dir_args=() dest_dir exclude_softdeps=false file IFS=$' \t\n' \
+			ignore_inexistent_modules=false kernel_release= mod module_files module_files_sorted \
+			non_module_files=() src_dir
 
 	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
+		-c|--copy-to-boot)
+			copy_to_boot=true
+			;;
 		-i|--ignore-inexistent-modules)
 			ignore_inexistent_modules=true
 			;;
@@ -312,7 +321,7 @@ function main {
 			do_backup=false
 			;;
 		-N|--dry-run)
-			dry_run=(--dry-run)
+			_DRY_RUN=false
 			;;
 		-r*|--kernel-release?(=*))
 			get_opt_and_optarg "${@:1:2}"
@@ -325,26 +334,56 @@ function main {
 		-h|--help)
 			show_usage_and_exit
 			;;
+		-v|--verbose)
+			_VERBOSE=true
+			;;
 		-V|--version)
-			echo "${VERSION}"
+			echo "${_VERSION}"
 			return 2
+			;;
+		--)
+			dir_args+=("${@:2}")
+			break
 			;;
 		-[!-][!-]*)
 			set -- "${1:0:2}" "-${1:2}" "${@:2}"
 			continue
 			;;
+		-?*)
+			fail "Invalid option: $1" 2
+			;;
 		*)
-			fail "Invalid argument: $1" 2
+			dir_args+=("$1")
 			;;
 		esac
 
 		shift
 	done
 
-	[[ ${dry_run-} ]] && echo "Dry run enabled."
+	[[ ${#dir_args[@]} -le 2 ]] || fail "Too many arguments specified." 2
+	[[ ${dir_args+.} ]] || fail "Source directory not specified." 2
+	src_dir=${dir_args}
 
+	if [[ ${dir_args[1]+.} ]]; then
+		dest_dir=${dir_args[1]}
+	else
+		dest_dir=${src_dir}/..
+	fi
+
+	[[ ${copy_to_boot} == true && ${dest_dir} -ef /boot ]] && \
+		fail "Specified destination directory can't be the same as '/boot' if copy-to-boot is enabled." 2
 	[[ ${create_modules_list} == true && ${copy_modules} == false ]] && \
 		fail "Create-modules-list option requires copy-modules option."
+
+	[[ ${src_dir} == /* ]] || src_dir=${PWD}/${src_dir}
+	[[ ${dest_dir} == /* ]] || dest_dir=${PWD}/${dest_dir}
+
+	echo "Source directory: ${src_dir}"
+	echo "Destination directory: ${dest_dir}"
+
+	[[ ${dry_run-} ]] && echo "Dry run is enabled."
+
+	pushd -- "${src_dir}" >/dev/null || fail "Failed to change working directory to '${src_dir}'."
 
 	if [[ ${copy_modules+.} ]]; then
 		for mod in "${copy_modules[@]}"; do
@@ -371,7 +410,7 @@ function main {
 	for file in lib/modules modules_list; do
 		if [[ -e ${file} ]]; then
 			echo "Deleting '${file}'."
-			call "${dry_run[@]}" rm -fr -- "${file}" && [[ ${dry_run-} || ! -e ${file} ]] || \
+			call --allow-dry-run rm -fr -- "${file}" && [[ ${dry_run-} || ! -e ${file} ]] || \
 				fail "Failed to delete '${file}'."
 		fi
 	done
@@ -383,13 +422,13 @@ function main {
 			fail "Modules directory '/lib/modules/${kernel_release}' does not exist."
 
 		if [[ ${copy_all_modules} == true ]]; then
-			call "${dry_run[@]}" mkdir -p lib/modules || fail "Failed to create 'lib/modules'."
+			call --allow-dry-run mkdir -p lib/modules || fail "Failed to create 'lib/modules'."
 
 			echo "Copying '/lib/modules/${kernel_release}' to 'lib/modules'."
-			call "${dry_run[@]}" cp -a "/lib/modules/${kernel_release}" lib/modules/ || \
+			call --allow-dry-run cp -a "/lib/modules/${kernel_release}" lib/modules/ || \
 				fail "Failed to copy '/lib/modules/${kernel_release}' to 'lib/modules'."
 		else
-			call "${dry_run[@]}" mkdir -p "lib/modules/${kernel_release}" || \
+			call --allow-dry-run mkdir -p "lib/modules/${kernel_release}" || \
 				fail "Failed to create 'lib/modules/${kernel_release}'."
 
 			local opts=()
@@ -406,7 +445,7 @@ function main {
 			printf '%s\n' "${module_files[@]##*/}" | sort | readarray -t module_files_sorted
 			printf 'Modules: %s\n' "${module_files_sorted[*]}"
 
-			if [[ -z ${dry_run-} ]]; then
+			if [[ ${_DRY_RUN} == false ]]; then
 				printf '%s\0' "${module_files[@]}" "${non_module_files[@]}" | \
 						rsync -Ra --files-from=- -0 / . || fail "Failed to copy files using rsync."
 			fi
@@ -415,7 +454,7 @@ function main {
 		if [[ ${create_modules_list} == true ]]; then
 			echo "Creating 'modules_list'."
 
-			if [[ -z ${dry_run-} ]]; then
+			if [[ ${_DRY_RUN} == false ]]; then
 				find "/lib/modules/${kernel_release}" -name '*.ko' | \
 						gawk -F '[/.]' '{ print $(NF - 1) }' | sort -u > modules-list || \
 					fail "Failed to create 'modules-list'."
@@ -424,23 +463,27 @@ function main {
 	fi
 
 	local build=initramfs-${kernel_release}
-	echo "Creating CPIO archive '../${build}'."
+	echo "Creating CPIO archive '${dest_dir}/${build}'."
 
-	if [[ -z ${dry_run-} ]]; then
+	if [[ ${_DRY_RUN} == false ]]; then
 		find . -name '.git*' -prune -o -print | sort | cpio -o -H newc | \
-				xz --check=none -z -f -9 -c > "../${build}" || \
-			fail "Failed to create CPIO archive '../${build}'."
+				xz --check=none -z -f -9 -c > "${dest_dir}/${build}" || \
+			fail "Failed to create CPIO archive '${dest_dir}/${build}'."
 	fi
 
 	if [[ ${do_backup} == true && -e /boot/${build} ]]; then
 		echo "Backing up '/boot/${build}' as '/boot/${build}.bak'."
-		call "${dry_run[@]}" cp -a "/boot/${build}"{,.bak} || \
+		call --allow-dry-run cp -a "/boot/${build}"{,.bak} || \
 			fail "Failed to create '/boot/${build}.bak'."
 	fi
 
-	echo "Copying '../${build}' to '/boot/'."
-	call "${dry_run[@]}" cp -a "../${build}" "/boot/" || \
-		fail "Failed to copy '../${build}' to '/boot/'."
+	if [[ ${copy_to_boot} == true ]]; then
+		echo "Copying '${dest_dir}/${build}' to '/boot/'."
+		call --allow-dry-run cp -a "${dest_dir}/${build}" "/boot/" || \
+			fail "Failed to copy '${dest_dir}/${build}' to '/boot/'."
+	fi
+
+	popd >/dev/null || fail "Failed to change working directory to previous."
 }
 
 main "$@"
