@@ -10,7 +10,7 @@
 #
 # This script may or may not support directories.  It requires git.
 #
-# Copyright (c) 2023 konsolebox
+# Copyright (c) 2024 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the “Software”), to deal
@@ -40,7 +40,7 @@
 shopt -s extglob || exit 1
 
 _VERBOSE=false
-_VERSION=2023.12.09
+_VERSION=2024.08.25
 
 function call {
 	if [[ ${_VERBOSE} == true ]]; then
@@ -122,7 +122,7 @@ function main {
 	[[ ${#file[@]} -gt 1 ]] && die "Only one file can be specified."
 	[[ ${file} == @(|.|..) ]] && die "Invalid file argument: ${file}"
 
-	output=$(call git log --name-status --pretty=oneline --diff-filter=d -- "${file}") || \
+	output=$(call git log --name-status --pretty=oneline --diff-filter=d --max-count=1 -- "${file}") || \
 		die "Failed to find commit for '${file}'."
 	[[ ${output} ]] || die "No commit found for '${file}'."
 	commit=${output%%[[:blank:]]*}
