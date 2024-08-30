@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[[ BASH_VERSINFO -ge 5 ]] && set -u
+
 # ----------------------------------------------------------------------
 
 # build-initramfs.bash
@@ -17,7 +19,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 9, 2024
+# Aug. 30, 2024
 
 # Credits (Thanks to)
 #
@@ -31,11 +33,12 @@
 	exit 1
 }
 
-set -f && set +o posix && set -o pipefail && shopt -s assoc_expand_once extglob lastpipe || exit 1
+set -f && set +o posix && set -o pipefail || exit 1
+shopt -s assoc_expand_once extglob lastpipe nullglob || exit 1
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2024.08.09
+_VERSION=2024.08.30
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
@@ -152,7 +155,7 @@ function with_opened_file {
 }
 
 function get_module_files {
-	module_files=()
+	_module_files=()
 	local modules_dir=$1 dep deps file ignore_inexistent=false exclude_softdeps=false mod
 	local -A modules_alias_map=() modules_builtin_reg=() modules_dep_map=() modules_dep_reg=() \
 			modules_map=() modules_map_rev=() modules_reg=() modules_softdep_map=() specified=()
@@ -179,6 +182,14 @@ function get_module_files {
 	'
 
 	with_opened_file "${modules_dir}/modules.alias" '
+		local fd=$1 line
+
+		while read -ru "${fd}" -a line; do
+			[[ ${line} == alias ]] && modules_alias_map[${line[1]//_/-}]=${line[2]//_/-}
+		done
+	'
+
+	with_opened_file "${modules_dir}/modules.symbols" '
 		local fd=$1 line
 
 		while read -ru "${fd}" -a line; do
@@ -229,12 +240,12 @@ function get_module_files {
 	fi
 
 	for mod; do
-		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${mod}}
+		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${modules_alias_map[symbol:${mod}]-${mod}}}
 		specified[${mod}]=.
 	done
 
 	while mod=${1-}; shift; do
-		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${mod}}
+		mod=${mod//_/-} mod=${modules_alias_map[${mod}]-${modules_alias_map[symbol:${mod}]-${mod}}}
 
 		if [[ -z ${modules_reg[${mod}]+.} ]]; then
 			modules_reg[${mod}]=.
@@ -266,9 +277,7 @@ function get_module_files {
 				fail "Module not mapped to a file: ${mod}"
 			fi
 
-			file=${modules_dir}/${file}
-			[[ -e ${file} ]] || fail "Module exists in modules.order but not in filesystem: ${file}"
-			module_files+=("${file}")
+			_module_files+=("${modules_dir}/${file}")
 		fi
 	done
 }
@@ -276,8 +285,8 @@ function get_module_files {
 function main {
 	local copy_modules=() copy_all_modules=false copy_to_boot=false create_modules_list=false \
 			do_backup=true dir_args=() dest_dir exclude_softdeps=false file IFS=$' \t\n' \
-			ignore_inexistent_modules=false kernel_release= mod module_files module_files_sorted \
-			non_module_files=() src_dir
+			ignore_inexistent_modules=false kernel_release= mod module_files_sorted \
+			non_module_files=() src_dir real real_module_files=() _module_files
 
 	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
 
@@ -378,10 +387,7 @@ function main {
 	[[ ${src_dir} == /* ]] || src_dir=${PWD}/${src_dir}
 	[[ ${dest_dir} == /* ]] || dest_dir=${PWD}/${dest_dir}
 
-	echo "Source directory: ${src_dir}"
-	echo "Destination directory: ${dest_dir}"
-
-	[[ ${dry_run-} ]] && echo "Dry run is enabled."
+	[[ ${_DRY_RUN} == true ]] && echo "Dry run is enabled."
 
 	pushd -- "${src_dir}" >/dev/null || fail "Failed to change working directory to '${src_dir}'."
 
@@ -410,8 +416,9 @@ function main {
 	for file in lib/modules modules_list; do
 		if [[ -e ${file} ]]; then
 			echo "Deleting '${file}'."
-			call --allow-dry-run rm -fr -- "${file}" && [[ ${dry_run-} || ! -e ${file} ]] || \
-				fail "Failed to delete '${file}'."
+			call --allow-dry-run rm -fr -- "${file}" && \
+				[[ ${_DRY_RUN} == true || ! -e ${file} ]] || \
+					fail "Failed to delete '${file}'."
 		fi
 	done
 
@@ -435,18 +442,34 @@ function main {
 			[[ ${exclude_softdeps} == true ]] && opts+=(--exclude-softdeps)
 			[[ ${ignore_inexistent_modules} == true ]] && opts+=(--ignore-inexistent)
 			get_module_files "/lib/modules/${kernel_release}" "${opts[@]}" "${copy_modules[@]}"
+			set +f || exit 1
+
+			for file in "${_module_files[@]}"; do
+				real=("${file}"?(.gz|.xz|.zst))
+
+				if [[ ${#real[@]} -eq 0 ]]; then
+					fail "Neither module file nor compressed version of the module file exists: ${file}"
+				elif [[ ${#real[@]} -ne 1  ]]; then
+					fail "Module file expanded to too many formats: ${real[@]}"
+				fi
+
+				real_module_files+=("${real}")
+			done
+
+			set -f || exit 1
 
 			readarray -t non_module_files < <(find "/lib/modules/${kernel_release}" -type f \
-					-not -name '*.ko')
+					-not -name '*.ko' -not -name '*.ko.gz' -not -name '*.ko.xz' \
+					-not -name '*.ko.zst')
 			[[ ${non_module_files+.} ]] || \
 				fail "No non-module files found in '/lib/modules/${kernel_release}'."
 
 			echo "Copying module files to 'lib/modules/${kernel_release}'."
-			printf '%s\n' "${module_files[@]##*/}" | sort | readarray -t module_files_sorted
+			printf '%s\n' "${real_module_files[@]##*/}" | sort | readarray -t module_files_sorted
 			printf 'Modules: %s\n' "${module_files_sorted[*]}"
 
 			if [[ ${_DRY_RUN} == false ]]; then
-				printf '%s\0' "${module_files[@]}" "${non_module_files[@]}" | \
+				printf '%s\0' "${real_module_files[@]}" "${non_module_files[@]}" | \
 						rsync -Ra --files-from=- -0 / . || fail "Failed to copy files using rsync."
 			fi
 		fi
@@ -462,7 +485,7 @@ function main {
 		fi
 	fi
 
-	local build=initramfs-${kernel_release}
+	local build=initramfs-${kernel_release}.img
 	echo "Creating CPIO archive '${dest_dir}/${build}'."
 
 	if [[ ${_DRY_RUN} == false ]]; then
@@ -471,13 +494,13 @@ function main {
 			fail "Failed to create CPIO archive '${dest_dir}/${build}'."
 	fi
 
-	if [[ ${do_backup} == true && -e /boot/${build} ]]; then
-		echo "Backing up '/boot/${build}' as '/boot/${build}.bak'."
-		call --allow-dry-run cp -a "/boot/${build}"{,.bak} || \
-			fail "Failed to create '/boot/${build}.bak'."
-	fi
-
 	if [[ ${copy_to_boot} == true ]]; then
+		if [[ ${do_backup} == true && -e /boot/${build} ]]; then
+			echo "Backing up '/boot/${build}' as '/boot/${build}.bak'."
+			call --allow-dry-run cp -a "/boot/${build}"{,.bak} || \
+				fail "Failed to create '/boot/${build}.bak'."
+		fi
+
 		echo "Copying '${dest_dir}/${build}' to '/boot/'."
 		call --allow-dry-run cp -a "${dest_dir}/${build}" "/boot/" || \
 			fail "Failed to copy '${dest_dir}/${build}' to '/boot/'."
