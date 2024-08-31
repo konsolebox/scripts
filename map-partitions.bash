@@ -37,7 +37,7 @@
 
 shopt -s extglob || exit 1
 
-VERSION=2024.08.04
+VERSION=2024.08.31
 
 function die {
 	printf '%s\n' "$1" >&2
@@ -46,7 +46,6 @@ function die {
 
 function show_warnings {
 	echo "WARNING: This tool does not guarantee functionality.
-WARNING: It has only been tested with MSDOS partitions.
 WARNING: Read its code for details on the license regarding its usage."
 }
 
@@ -56,13 +55,14 @@ Maps partitions in a block device to logical devices using dmsetup and sfdisk
 Usage: $0 [options] target [name]
 
 Options:
-  -h, --help           Show this help info
-  -H, --hide-warnings  Hide warnings
-  -n, --dry-run        Enable dry-run mode
-  -r, --remove         Remove mappings instead
-  -v, --verbose        Enable verbose mode
-                       Can be specified twice to increase verbosity.
-  -V, --version        Show version
+  -h, --help               Show this help info
+  -H, --hide-warnings      Hide warnings
+  -n, --dry-run            Enable dry-run mode
+  -r, --remove             Remove mappings instead
+  -R, --remove-with-force  Same as --remove but don't abort on errors
+  -v, --verbose            Enable verbose mode
+                           Can be specified twice to increase verbosity.
+  -V, --version            Show version
 "
 	show_warnings
 	exit 2
@@ -94,7 +94,8 @@ function call {
 
 function main {
 	local target name dev start_key start size_key size id_key id i __
-	local args=() dry_run=() hide_warnings=false remove_mode=false sfdisk verbose=()
+	local args=() dry_run=() hide_warnings=false remove_mode=false remove_mode_forced=false sfdisk \
+			verbose=()
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
@@ -109,6 +110,10 @@ function main {
 			;;
 		-r|--remove-mode)
 			remove_mode=true
+			;;
+		-R|--remove-with-force)
+			remove_mode=true
+			remove_mode_forced=true
 			;;
 		-v|--verbose)
 			verbose+=(-v)
@@ -156,11 +161,14 @@ function main {
 	while IFS=' :,=' read -ru 4 dev start_key start size_key size id_key id; do
 		if [[ ${start_key} == start && size -gt 0 ]]; then
 			if [[ ${remove_mode} == true ]]; then
-				call "${dry_run[@]}" dmsetup "${verbose[@]}" remove "${name}p${i}" || return
+				call "${dry_run[@]}" dmsetup "${verbose[@]}" remove "${name}p${i}" || \
+					[[ ${remove_mode_forced} == true ]] || \
+						return
 			else
 				call "${dry_run[@]}" dmsetup "${verbose[@]}" create "${name}p${i}" \
 						--table "0 ${size} linear ${target} ${start}" || \
-					return
+					[[ ${remove_mode_forced} == true ]] || \
+						return
 			fi
 
 			(( ++i ))
