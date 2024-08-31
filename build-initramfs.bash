@@ -15,11 +15,11 @@
 # The initrd image is created in the parent directory and
 # then copied to /boot.
 #
-# Usage: [bash] ./build-initramfs.bash dir [dest_dir] [options]
+# Usage: [bash] ./build-initramfs.bash [options] -- dir [dest_dir]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 30, 2024
+# Aug. 31, 2024
 
 # Credits (Thanks to)
 #
@@ -38,32 +38,48 @@ shopt -s assoc_expand_once extglob lastpipe nullglob || exit 1
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2024.08.30
+_VERSION=2024.08.31
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
 it to the parent directory of the specified directory (unless destination
 directory is also specified), and copies it to /boot
 
-Usage: $0 dir [dest_dir] [options]
+Usage: $0 [options] [--] dir [dest_dir]
 
 Important Options:
-  -r, --kernel-release RELEASE     Specify kernel's release name.  If this is
-                                   omitted, the output of 'uname -r' is used.
-  -c, --copy-to-boot               Enables copying initrd image to /boot
+  -c, --copy-to-boot               Enables copying the initrd image to /boot.
+
+  -i, --ignore-inexistent-modules  Ignore specified modules that also aren't
+                                   hard dependencies of other modules if they
+                                   don't exist.
+
+  -d, --delete-module-files        When copying of modules is not enabled,
+                                   delete existing lib/modules and modules_list
+                                   in the initrd root.
+
   -m, --copy-modules [LIST]        Copy /lib/modules/RELEASE to lib/modules
                                    before creating the image.  A specific
                                    comma-separated list of modules can also be
                                    specified.  Only these specified modules
                                    along with their dependencies will be copied.
-  -M, --copy-modules-file FILE     Same as '-m' but extracts list of modules to
-                                   copy from FILE instead.  Each entry should be
-                                   separated by a newline.  Empty lines and
+                                   The dependencies are populated through the
+                                   table files in /lib/modules/RELEASE.
+
+                                   This mode deletes the existing lib/modules
+                                   and modules_list files before copying the
+                                   modules, even if the --delete-module-files
+                                   option is not specified.
+
+  -M, --copy-modules-file FILE     Same as '-m' but extracts the list of modules
+                                   to copy from FILE instead.  Each entry should
+                                   be separated by a newline.  Empty lines and
                                    lines starting with '#' are ignored.
-  -i, --ignore-inexistent-modules  Ignore specified modules that also aren't
-                                   hard dependencies of other modules if they
-                                   don't exist
-  -z, --exclude-softdeps           Don't copy soft dependencies of modules
+
+  -r, --kernel-release RELEASE     Specify kernel's release name.  If this is
+                                   omitted, the output of 'uname -r' is used.
+
+  -z, --exclude-softdeps           Don't copy soft dependencies of modules.
 
 Other Options:
   -l, --create-modules-list  Create a 'modules_list' file which will contain a
@@ -149,6 +165,7 @@ function call_func_or_block {
 
 function with_opened_file {
 	local __file=$1 __fd
+	[[ -f ${__file} ]] || fail "Not a file: ${__file}"
 	exec {__fd}< "${__file}" || fail "Failed to open '${__file}' for reading."
 	call_func_or_block "$2" "${__fd}"
 	exec {__fd}<&- || fail "Failed to close FD ${__fd}."
@@ -284,9 +301,9 @@ function get_module_files {
 
 function main {
 	local copy_modules=() copy_all_modules=false copy_to_boot=false create_modules_list=false \
-			do_backup=true dir_args=() dest_dir exclude_softdeps=false file IFS=$' \t\n' \
-			ignore_inexistent_modules=false kernel_release= mod module_files_sorted \
-			non_module_files=() src_dir real real_module_files=() _module_files
+			delete_module_files=false do_backup=true dir_args=() dest_dir exclude_softdeps=false \
+			file IFS=$' \t\n' ignore_inexistent_modules=false kernel_release= mod \
+			module_files_sorted non_module_files=() src_dir real real_module_files=() _module_files
 
 	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
 
@@ -294,6 +311,9 @@ function main {
 		case $1 in
 		-c|--copy-to-boot)
 			copy_to_boot=true
+			;;
+		-d|--delete-module-files)
+			delete_module_files=true
 			;;
 		-i|--ignore-inexistent-modules)
 			ignore_inexistent_modules=true
@@ -413,14 +433,16 @@ function main {
 		echo "Using current kernel release which is '${kernel_release}'."
 	fi
 
-	for file in lib/modules modules_list; do
-		if [[ -e ${file} ]]; then
-			echo "Deleting '${file}'."
-			call --allow-dry-run rm -fr -- "${file}" && \
-				[[ ${_DRY_RUN} == true || ! -e ${file} ]] || \
-					fail "Failed to delete '${file}'."
-		fi
-	done
+	if [[ ${copy_modules+.} || ${delete_module_files} == true ]]; then
+		for file in lib/modules modules_list; do
+			if [[ -e ${file} ]]; then
+				echo "Deleting '${file}'."
+				call --allow-dry-run rm -fr -- "${file}" && \
+					[[ ${_DRY_RUN} == true || ! -e ${file} ]] || \
+						fail "Failed to delete '${file}'."
+			fi
+		done
+	fi
 
 	if [[ ${copy_modules+.} ]]; then
 		echo "Creating 'lib/modules'."
