@@ -49,7 +49,7 @@ _ORIG_HEAD_REF=
 _TEMPORARY_BRANCH_NAME=
 _TOP_LEVEL_DIR=
 _VERBOSE=false
-_VERSION=2024.06.20
+_VERSION=2024.08.31
 
 function err {
 	printf '%s\n' "$1" 2>&1
@@ -145,7 +145,7 @@ function call {
 		printf '%s\n' "> ${msg# }" >&"${_CALL_MSG_FD}"
 	fi
 
-	[[ ${dry_run} == true ]] || command "$@"
+	[[ ${dry_run} == true ]] || "$@"
 }
 
 function remove_move_orig_head {
