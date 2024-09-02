@@ -19,7 +19,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Aug. 31, 2024
+# Sept. 2, 2024
 
 # Credits (Thanks to)
 #
@@ -38,7 +38,7 @@ shopt -s assoc_expand_once extglob lastpipe nullglob || exit 1
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2024.08.31
+_VERSION=2024.09.02
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
@@ -305,8 +305,6 @@ function main {
 			file IFS=$' \t\n' ignore_inexistent_modules=false kernel_release= mod \
 			module_files_sorted non_module_files=() src_dir real real_module_files=() _module_files
 
-	[[ ${PWD} -ef / ]] && fail "Refusing to run in '/'."
-
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-c|--copy-to-boot)
@@ -406,6 +404,8 @@ function main {
 
 	[[ ${src_dir} == /* ]] || src_dir=${PWD}/${src_dir}
 	[[ ${dest_dir} == /* ]] || dest_dir=${PWD}/${dest_dir}
+
+	[[ ${src_dir} -ef / ]] && fail "Not accepting '/' as source directory."
 
 	[[ ${_DRY_RUN} == true ]] && echo "Dry run is enabled."
 
