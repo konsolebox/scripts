@@ -10,7 +10,7 @@
 #
 # This tool requires GNU versions of tail and grep, any version of cat.
 #
-# Copyright (c) 2023 konsolebox
+# Copyright (c) 2024 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -33,7 +33,7 @@
 
 # ----------------------------------------------------------------------
 
-VERSION=2024.05.27
+VERSION=2024.09.30
 
 shopt -s extglob && set +o posix || exit
 
@@ -251,8 +251,7 @@ function main {
 		[[ ${flags} == *w* ]] && grep_opts+=w
 		[[ ${flags} == *l* ]] && grep_opts+=x
 		[[ ${null} == true ]] && grep_opts+=z
-		printf -v "cmds[${#cmds[i]}]" '%q ' grep --line-buffered -"${grep_opts}e" \
-				"${expressions[i]}"
+		printf -v 'cmds[i + 1]' '%q ' grep --line-buffered -"${grep_opts}e" "${expressions[i]}"
 	done
 
 	printf -v complete_cmd '%s| ' "${cmds[@]}"
