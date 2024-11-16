@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 22, 2022
+# Nov. 16, 2024
 
 # ----------------------------------------------------------
 
@@ -40,7 +40,7 @@ module Net
   autoload :Ping, 'net/ping'
 end
 
-VERSION = '2022.07.22'
+VERSION = '2024.11.16'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_PAUSE = 1
