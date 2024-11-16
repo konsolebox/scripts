@@ -25,7 +25,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# July 13, 2024
+# July 22, 2022
 
 # ----------------------------------------------------------
 
@@ -40,7 +40,7 @@ module Net
   autoload :Ping, 'net/ping'
 end
 
-VERSION = '2024.07.13'
+VERSION = '2022.07.22'
 INSTANCES_LIMIT = 50
 WAIT_FOR_CONNECTION_TIMEOUT = 5
 WAIT_FOR_CONNECTION_PAUSE = 1
@@ -587,7 +587,6 @@ def main
   #
 
   parser = OptionParser.new
-  parser.require_exact = true if parser.respond_to? :require_exact
 
   parser.on_tail("-h", "--help", "Show this help info and exit.") do
     $stderr.puts "dnscrypt-proxy-multi #{VERSION}"
