@@ -407,8 +407,6 @@ def main
   end
 
   OptionParser.new do |parser|
-    parser.require_exact = true if parser.respond_to? :require_exact
-
     parser.on("-1", "--one-extension", "Only keep one filename extension") do
       @options.one_extension = true
     end
