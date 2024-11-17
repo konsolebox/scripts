@@ -6,9 +6,10 @@ A repository for various scripts I make.
 
 Searches for binary files based on the value of `$PATH`.
 
-#### build-and-copy.bash
+#### build-initramfs.bash
 
-A script I use to automate building of initrd image.
+Automates building of initrd image using the files and directories in
+the specified directory.
 
 #### cd.bash
 
@@ -29,11 +30,6 @@ The script waits for all instances to exit before it
 exits.  It also automaticaly stops them when it receives
 SIGTERM or SIGINT.
 
-#### hist.bash
-
-Simple script that finds matching entries in `~/.bash_history` using
-specified keywords
-
 #### getabspath/*
 
 Scripts that implement getabspath() for various shells.  getabspath() is
@@ -49,6 +45,28 @@ getcleanpath() is similar to getabspath() but it doesn't care about the
 format of its input to base on for its output.  It would always produce
 an output similar to realpath where the path would never end in / unless
 it's the root directory itself.
+
+#### git/git-amend-date-using-reference.bash
+
+Updates current commit's date using another commit's date as reference
+
+#### git/git-checkout-last-version.bash
+
+Extracts the last version of a file before it was removed from git
+
+#### git/git-diff-blame.rb
+
+Annotates each line in a diff hunk with author and commit information
+like blame
+
+#### git/git-move.bash
+
+Moves commits in a tree to a new base commit within the same tree
+
+#### hist.bash
+
+Simple script that finds matching entries in `~/.bash_history` using
+specified keywords
 
 #### killtree.bash
 
