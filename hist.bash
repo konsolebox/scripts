@@ -6,13 +6,15 @@
 #
 # Finds entries in ~/.bash_history
 #
-# Usage: hist[.bash] keyword [keyword2 ...]
+# Usage: hist[.bash] [-h|--help|-V|--version] [--] [[!]keyword ...]]
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# May 7, 2024
+# Nov. 19, 2024
 
 # ----------------------------------------------------------
+
+VERSION=2024.11.19
 
 [ -n "${BASH_VERSION}" ] || {
 	echo "This script requires Bash."
@@ -25,10 +27,13 @@ function die {
 }
 
 function main {
-	if [[ $# -eq 0 || $1 == -h || $1 == --help ]]; then
-		echo "Usage: $0 [-h|--help] [--] keyword [keyword2 ...]"
+	if [[ $1 == -h || $1 == --help ]]; then
+		echo "Usage: $0 [-h|--help|-V|--version] [--] [[!]keyword ...]]"
 		echo "Invalid options will also be considered as keywords."
-		return 1
+		exit 2
+	elif [[ $1 == -V || $1 == --version ]]; then
+		echo "${VERSION}"
+		exit 2
 	fi
 
 	[[ $1 == -- ]] && shift
@@ -38,42 +43,61 @@ function main {
 
 	exec gawk '
 		BEGIN {
-			for (i = 2; i < ARGC; ++i) {
-				negate[i] = ARGV[i] ~ /^!/
-				keywords[i] = negate[i] ? substr(ARGV[i], 2) : ARGV[i]
-			}
-
-			ARGC = 2
-
-			for (i = 0; i < 100; ++i) {
-				if ((getline < ARGV[1]) < 1)
-					break
-
-				if ($0 ~ /^#[[:digit:]]+$/) {
-					has_timestamps = 1
-					RS = "#[[:digit:]]+\n"
-					break
+			if (ARGC > 2) {
+				for (i = 2; i < ARGC; ++i) {
+					negate[i] = ARGV[i] ~ /^!/
+					keywords[i] = negate[i] ? substr(ARGV[i], 2) : ARGV[i]
 				}
+
+				ARGC = 2
+			} else {
+				show_all = 1
 			}
 
 			close(ARGV[1])
 		}
 
-		!/^\s*(#|hist )/ {
-			for (i in keywords) {
-				found = index($0, keywords[i])
+		/^#([[:digit:]]+$)/ {
+			timestamp = $0
+			next
+		}
 
-				if (negate[i] ? found : !found)
-					next
+		{
+			cmd = $0
+			next_timestamp = ""
+
+			if (timestamp) {
+				lastRT = RT
+
+				while (getline > 0) {
+					if (/^#([[:digit:]]+$)/) {
+						next_timestamp = $0
+						break
+					}
+
+					cmd = cmd lastRT $0
+					lastRT = RT
+				}
 			}
 
-			if (has_timestamps)
-				gsub(/\n$/, "")
+			if (cmd !~ /^\s*(#|hist\s*)/) {
+				if (!show_all) {
+					for (i in keywords) {
+						found = index(cmd, keywords[i])
 
-			if (match(RT, /^#([[:digit:]]+)/, a))
-				printf "%5d  [%s] %s\n", ++counter, strftime("%F %T %z", a[1]), $0
-			else
-				printf "%5d  %s\n", ++counter, $0
+						if (negate[i] ? found : !found)
+							next
+					}
+				}
+
+				if (timestamp)
+					printf "%5d  [%s] %s%s" , ++counter, strftime("%F %T %z", substr(timestamp, 2)),
+							cmd, ORS
+				else
+					printf "%5d  %s%s", ++counter, cmd, ORS
+			}
+
+			timestamp = next_timestamp
 		}
 	' ~/.bash_history "$@"
 }
