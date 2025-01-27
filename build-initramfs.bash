@@ -1,7 +1,5 @@
 #!/bin/bash
 
-[[ BASH_VERSINFO -ge 5 ]] && set -u
-
 # ----------------------------------------------------------------------
 
 # build-initramfs.bash
@@ -19,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Sept. 2, 2024
+# Jan. 28, 2025
 
 # Credits (Thanks to)
 #
@@ -38,7 +36,7 @@ shopt -s assoc_expand_once extglob lastpipe nullglob || exit 1
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2024.09.02
+_VERSION=2025.01.28
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
