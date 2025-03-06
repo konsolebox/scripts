@@ -17,7 +17,7 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# Jan. 28, 2025
+# March 6, 2025
 
 # Credits (Thanks to)
 #
@@ -36,7 +36,7 @@ shopt -s assoc_expand_once extglob lastpipe nullglob || exit 1
 
 _DRY_RUN=false
 _VERBOSE=false
-_VERSION=2025.01.28
+_VERSION=2025.03.06
 
 function show_usage_and_exit {
 	echo "Creates an initrd image using the specified directory as root, saves
@@ -80,12 +80,12 @@ Important Options:
   -z, --exclude-softdeps           Don't copy soft dependencies of modules.
 
 Other Options:
+  -h, --help                 Show this usage info and exit
   -l, --create-modules-list  Create a 'modules_list' file which will contain a
                              list of modules in 'lib/modules'
   -n, --dry-run              Do not actually create anything
   -N, --no-backup            Do not create a backup of initrd file in /boot
                              before overriding it
-  -h, --help                 Show this usage info and exit
   -v, --verbose              Enable verbose mode
   -V, --version              Show version and exit
 
