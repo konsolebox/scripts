@@ -12,7 +12,7 @@
 # To use this tool, the gem 'digest-kangarootwelve' should also be
 # installed.
 #
-# Copyright © 2024 konsolebox
+# Copyright © 2025 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files
@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2024.11.16"
+VERSION          = "2025.04.27"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
@@ -398,6 +398,33 @@ def parse_bit_size(bit_size_str)
   bit_size
 end
 
+def each_parent(path, &blk)
+  Pathname.new(File.expand_path(path)).ascend.lazy.map(&:to_s).each(&blk)
+end
+
+def setup_dependencies_map(targets)
+  no_parents_from_here = {}
+
+  targets.each do |target|
+    first_parent = nil
+    parent_found = false
+
+    each_parent(target) do |parent|
+      first_parent ||= parent
+
+      if no_parents_from_here.has_key(parent)
+        break
+      elsif @targets_map.has_key?(parent)
+        (@dependencies_map[parent] ||= []) << target
+        parent_found = true
+        break
+      end
+    end
+
+    no_parents_from_here[first_parent] = true unless parent_found
+  end
+end
+
 def main
   base = File.basename($0) rescue nil
 
@@ -543,14 +570,7 @@ def main
   end.compact
 
   raise "No targets to process." if targets.empty?
-
-  if @options.process_directories && !@options.recursive
-    targets.each do |t|
-      parent = File.dirname(t)
-      (@dependencies_map[parent] ||= []) << t if @targets_map.has_key?(parent)
-    end
-  end
-
+  setup_dependencies_map(targets) if @options.process_directories && !@options.recursive
   process targets
 rescue SystemExit
   raise
