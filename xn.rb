@@ -579,7 +579,7 @@ rescue Interrupt
   log_error "SIGINT caught."
   exit 1
 rescue Exception => ex
-  log_error ex.message.capitalize
+  log_error ex.message.sub(/./, &:upcase)
   exit 1
 end
 
