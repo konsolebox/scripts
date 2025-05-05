@@ -2,125 +2,150 @@
 
 A repository for various scripts I make.
 
-#### binfind.bash
+### binfind.bash
 
-Searches for binary files based on the value of `$PATH`.
+Searches for binary files based on the value of `${PATH}`.
 
-#### build-initramfs.bash
+### build-initramfs.bash
 
-Automates building of initrd image using the files and directories in
-the specified directory.
+Automates building of an initrd image using the files and directories in
+a specified directory.
 
-#### cd.bash
+### cd.bash
 
-A simple and convenient enhancement wrapper for cd.
+A simple and convenient enhancement wrapper for **cd**.
 
-#### dnscrypt-proxy-multi.rb
+### dnscrypt-proxy-multi.rb
 
-A Ruby script that runs multiple instances of dnscrypt-proxy.
+A Ruby script that runs multiple instances of **dnscrypt-proxy**.
 
-It parses a CSV file and makes use of the entries found in
-it as target remote services when creating instances of
-dnscrypt-proxy.  Remote services are checked for
-availability before an instance of dnscrypt-proxy is used
-to connect to them.  An FQDN can also be used to check if
-a remote service can resolve names.
+It parses a CSV file and makes use of the entries found in it as target 
+remote services when creating instances of **dnscrypt-proxy**.
 
-The script waits for all instances to exit before it
-exits.  It also automaticaly stops them when it receives
-SIGTERM or SIGINT.
+Remote services are checked for availability before an instance of 
+**dnscrypt-proxy** is used to connect to them.
 
-#### getabspath/*
+An FQDN can also be used to check if a remote service is able to 
+resolve names.
 
-Scripts that implement getabspath() for various shells.  getabspath() is
-a function for shell scripts that's intended to get the strict absolute
-form of a path *(strict in a sense that the resulting path would remain
-consistent even if another item is appended unto it)*, without relying
-on an external command if possible.
+The script waits for all instances to exit before it exits.  It also 
+automatically stops them when it receives a SIGTERM or a SIGINT signal.
 
-#### getcleanpath/*
+### getabspath/*
 
-Scripts that implement getcleanpath() for various shells.
-getcleanpath() is similar to getabspath() but it doesn't care about the
-format of its input to base on for its output.  It would always produce
-an output similar to realpath where the path would never end in / unless
-it's the root directory itself.
+Scripts that implement **getabspath** for POSIX-compliant shells.
 
-#### git/git-amend-date-using-reference.bash
+**getabspath** is a shell function that returns the strict absolute 
+form of a given path.
 
-Updates current commit's date using another commit's date as reference
+Similar to **realpath**, it converts the input to its simplified 
+absolute form using the current directory as a reference but does not 
+resolve symbolic links and ensures the output’s trailing slash matches 
+the input’s: one or more trailing `/` yields a single `/`, otherwise 
+none.
 
-#### git/git-checkout-last-version.bash
+A `/` or `.` may be added to match the input’s trailing slash presence, 
+distinguishing strict from regular absolute paths.
 
-Extracts the last version of a file before it was removed from git
+### getcleanpath/*
 
-#### git/git-diff-blame.rb
+Scripts that implement **getcleanpath** for POSIX-compliant shells.
+
+**getcleanpath** is a shell function that returns the absolute form of 
+a given path.
+
+Similar to **realpath**, it converts the input to its simplified 
+absolute form using the current directory as a reference but does not 
+resolve symbolic links.
+
+Unlike **getabspath**, it omits any trailing `/` except for the root 
+directory.
+
+### git/git-amend-date-using-reference.bash
+
+Updates the current commit's date using another commit's date as
+reference.
+
+### git/git-checkout-last-version.bash
+
+Extracts the last version of a file before it was removed from git.
+
+### git/git-diff-blame.rb
 
 Annotates each line in a diff hunk with author and commit information
-like blame
+like **git blame**'s output.
 
-#### git/git-move.bash
+### git/git-move.bash
 
-Moves commits in a tree to a new base commit within the same tree
+Rebases commits in a tree onto a new base commit within the same tree.
 
-#### hist.bash
+### hist.bash
 
-Simple script that finds matching entries in `~/.bash_history` using
-specified keywords
+Searches `~/.bash_history` for entries matching specified keywords.
 
-#### killtree.bash
+### hyphenate.rb
+
+Renames files and directories to the hyphenated version of their
+filename.
+
+### killtree.bash
 
 Sends signals to process trees with style.
 
-The script also contains reusable functions for working with process
-trees.
+The script also contains reusable functions for managing process trees.
 
-#### killtree-lite.bash
+### killtree-lite.bash
 
-A less poetic version of killtree.
+A less poetic version of **killtree**.
 
-#### libfind.bash
+### libfind.bash
 
 Finds library files by keywords or expressions in directories specified
-by /etc/ld.so.conf and its subfiles, or in common library directories
+by `/etc/ld.so.conf` and its subfiles, or in common library directories
 specified in an integrated list.
 
-#### manfind.bash
+### manfind.bash
 
-Searches for manual pages based on `$MANPATH`.
+Searches for manual pages based on `${MANPATH}`.
 
-#### map-partitions.bash
+### map-partitions.bash
 
 This tool maps partitions in a block device to logical devices using
-dmsetup and sfdisk.
+**dmsetup** and **sfdisk**.
 
-#### rcopy.bash
+### rcopy.bash
 
 Copies files along with their dependencies to a virtual root directory.
-The resulting file's path is reproduced based on its source.
 
-#### tail-follow-grep.bash
+The resulting file's path is reproduced based on its source's location.
 
-Basically a wrapper for 'tail -f' and 'grep --line-buffered'
+### tail-follow-grep.bash
 
-#### tcpdump-master.bash
+Basically a wrapper for `tail -f` and `grep --line-buffered`.
 
-The script is a tcpdump service starter and manager.  It can also
-automatically delete files older than C days, and reduce the size of
-the main log file if it's already larger than N bytes.
+### tcpdump-master.bash
 
-I wrote it back in 2010 for an LQ thread.  Right now tcpdump already has
-most of its features.
+A script to start and manage a **tcpdump** service.
 
-#### trim-trailing-spaces.bash
+It can automatically delete files older than a specified number of days
+and truncate the main log file if it exceeds a specified size in bytes.
 
-Removes trailing spaces in files.
+This was originally written in 2010 for a LinuxQuestions.org thread but
+**tcpdump** includes most of its features now.
 
-#### uuidfstab.bash
+### trim-trailing-spaces.bash
 
-Converts device paths in a fstab file to UUID forms.
+Removes trailing whitespace from files.
 
-#### xn.rb
+### uuidfstab.bash
+
+Replaces device paths in an fstab file with their UUID equivalents.
+
+### xn.rb
 
 Renames files and directories based on their 160-bit KangarooTwelve
-checksum while avoiding conflict on files with different content.
+checksum.
+
+It supports recursive renaming and avoids naming conflicts among files
+and directories with distinct content by appending supplemental
+suffixes.
