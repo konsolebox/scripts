@@ -12,7 +12,7 @@
 # To use this tool, the gem 'digest-kangarootwelve' should also be
 # installed.
 #
-# Copyright © 2025 konsolebox
+# Copyright © 2026 konsolebox
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files
@@ -44,7 +44,7 @@ require 'pathname'
 DEFAULT_BIT_SIZE = 160
 MAX_BIT_SIZE     = 512
 MAX_PREFIX_SIZE  = 100
-VERSION          = "2025.04.27"
+VERSION          = "2026.03.02"
 
 @options = OpenStruct.new(
   :bit_size             => DEFAULT_BIT_SIZE,
@@ -185,7 +185,7 @@ def process_dir(dir)
   if @options.process_directories
     base = File.basename(dir)
 
-    if @options.skip_processed_files && base_hashed_form?(base)
+    if @options.skip_processed_files && base_hashed_form?(base, @options.prefix)
       log_verbose "Skipping processed directory \"#{dir}\"."
       @results_map[dir] = true
       return
