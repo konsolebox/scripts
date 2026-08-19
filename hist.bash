@@ -10,12 +10,13 @@
 #
 # Author: konsolebox
 # Copyright Free / Public Domain
-# March 6, 2025
+# Aug. 19, 2026
 
 # ----------------------------------------------------------
 
 _DEFAULT_HISTORY_FILE=~/.bash_history
-_VERSION=2025.03.06
+_NEGATABLE_VARS=negate_final
+_VERSION=2026.08.19
 
 [ -n "${BASH_VERSION}" ] || {
 	echo "This script requires Bash."
@@ -27,27 +28,34 @@ function die {
 	exit "${2-1}"
 }
 
-function show_usage_and_exit {
+function show_usage {
 	echo "Shows or modifies Bash's history data
 
 Usage: $0 [options] [--] [[!]keyword ...]]
 
 Options:
+  -0, --null                 Use null as the output delimiter
+  -b, --bare                 Show plain command output; no dates
   -d, --delete               Delete matched entries from the history file
   -e, -k, --keyword=KEYWORD  Alternative way to specify a keyword
-  -f, --file=FILE            Process a different history file
   -E, --edit                 Open history file with an editor
-  -h, --help                 Show this usage info and exit
-  -i, --ignore-case          Ignore case when mmatching keywords
+  -f, --file=FILE            Process a different history file
+  -i, --ignore-case          Ignore case when matching keywords
+  -l, --last                 Only show last match
+  -n, --negate               Negate or unnegate results
   -r, --regex                Treat keywords as regex patterns
   -S, --show-location        Show location of the history file
+  -u, --unique               Exclude repeated commands in the output
   -w, --match-words          Match keywords against words found in entries
+  -Z, --save                 Save results back to the history file
+  -h, --help                 Show this usage info and exit
   -V, --version              Show version and exit
 
-All entries are shown if no keywords or mode options are specified.
+Notes:
+- All entries are shown if no keywords or mode options are specified.
+- Negations take effect before last entry is shown when -l or --last is enabled.
 
 Default history file is '${_DEFAULT_HISTORY_FILE}'."
-	exit 2
 }
 
 function get_opt_and_optarg {
@@ -66,107 +74,171 @@ function get_opt_and_optarg {
 	return 0
 }
 
-function edit_history_file_and_exit {
+function write_info {
+	local info=$1 use_null=${2-false} fmt='%s\n'
+	[[ ${use_null} == true ]] && fmt='%s\0'
+	printf "${fmt}" "${info}"
+}
+
+function edit_history_file {
 	local file=$1
 	[[ ${EDITOR-} ]] || die "EDITOR not specified."
 	set -f
 	${EDITOR} "${file}"
-	exit
 }
 
 function main {
-	local delete_mode=false edit=false ignore_case=false history_file=${_DEFAULT_HISTORY_FILE} \
-			gawk_args=() keywords=() regex_mode=false show_location=false word_mode=false
+	local bare_mode=false delete_mode=false edit=false ignore_case=false \
+			history_file=${_DEFAULT_HISTORY_FILE} gawk_args=() keywords=() last_only=false \
+			negate_final=false regex_mode=false save_mode show_location=false show_version=false \
+			unique_mode=false use_null=false var word_mode=false __negatable __
 
-	while [[ $# -gt 0 ]]; do
+	function get_boolean_option_var {
 		case $1 in
-		-d|--delete)
-			delete_mode=true
+		-0|--null)
+			__=use_null
 			;;
-		-e*|-k*|--keyword|--keyword=*)
-			get_opt_and_optarg "${@:1:2}"
-			keywords+=("${OPTARG}")
-			shift "${OPTSHIFT}"
+		-b|--bare)
+			__=bare_mode
+			;;
+		-d|--delete)
+			__=delete_mode
 			;;
 		-E|--edit)
-			edit=true
-			;;
-		-f*|--file|--file=*)
-			get_opt_and_optarg "${@:1:2}"
-			history_file=${OPTARG}
-			shift "${OPTSHIFT}"
-			;;
-		-h|--help)
-			show_usage_and_exit
+			__=edit
 			;;
 		-i|--ignore-case)
-			ignore_case=true
+			__=ignore_case
+			;;
+		-l|--last)
+			__=last_only
+			;;
+		-n|--negate)
+			__=negate_final
+			__negatable=true
 			;;
 		-r|--regex)
-			regex_mode=true
+			__=regex_mode
 			;;
 		-S|--show-location)
-			show_location=true
+			__=show_location
 			;;
-		-w|--match-words)
-			word_mode=true
+		-u|--unique)
+			__=unique_mode
 			;;
 		-V|--version)
-			echo "${_VERSION}"
-			exit 2
+			__=show_version
 			;;
-		--)
-			keywords+=("${@:2}")
-			break
+		-w|--match-words)
+			__=word_mode
 			;;
-		-[!-][!-]*)
-			set -- "${1:0:2}" "-${1:2}" "${@:2}"
-			continue
-			;;
-		-?*)
-			die "Invalid option: $1" 2
+		-Z|--save)
+			__=save_mode
 			;;
 		*)
-			keywords+=("$1")
+			__=
+			return 1
 			;;
 		esac
+
+		return 0
+	}
+
+	while [[ $# -gt 0 ]]; do
+		if get_boolean_option_var "$1"; then
+			if [[ $__negatable == true && ${!__} == true ]]; then
+				eval "$__=false"
+			else
+				eval "$__=true"
+			fi
+		else
+			case $1 in
+			-e*|-k*|--keyword|--keyword=*)
+				get_opt_and_optarg "${@:1:2}"
+				keywords+=("${OPTARG}")
+				shift "${OPTSHIFT}"
+				;;
+			-f*|--file|--file=*)
+				get_opt_and_optarg "${@:1:2}"
+				history_file=${OPTARG}
+				shift "${OPTSHIFT}"
+				;;
+			-h|--help)
+				show_usage
+				return 2
+				;;
+			--)
+				keywords+=("${@:2}")
+				break
+				;;
+			-[!-][!-]*)
+				set -- "${1:0:2}" "-${1:2}" "${@:2}"
+				continue
+				;;
+			-?*)
+				die "Invalid option: $1" 2
+				;;
+			*)
+				keywords+=("$1")
+				;;
+			esac
+		fi
 
 		shift
 	done
 
+	if [[ ${show_version} == true ]]; then
+		write_info "${_VERSION}" "${use_null}"
+		return 2
+	fi
+
 	function check_conflicting_arguments {
-		local option_name=$1
+		local subject=$1 arg __negatable __
 		shift
 
-		for var in delete_mode ignore_case keywords regex_mode word_mode "$@"; do
-			[[ -z ${!var+.} || ${!var} == false ]] || \
-				die "Invalid arguments specified along with the ${option_name} option"
+		for arg; do
+			if [[ ${arg} == @keywords ]]; then
+				[[ ${keywords+.} ]] && \
+					die "Keywords can't be specified along with the '--${subject}' option."
+			else
+				get_boolean_option_var "--${arg}" || die "Invalid boolean option: ${arg}"
+				[[ ${!__} == true ]] && \
+					die "Options '--${subject}' and '--${arg}' can't be specified at the same time."
+			fi
 		done
 	}
 
 	if [[ ${show_location} == true ]]; then
-		check_conflicting_arguments show-location edit
-		echo "${history_file}"
-		return 0
-	fi
-
-	if [[ ${edit} == true ]]; then
-		check_conflicting_arguments edit show_location
-		edit_history_file_and_exit "${history_file}"
+		check_conflicting_arguments show-location @keywords bare delete edit ignore-case last \
+				match-words negate regex save unique
+		write_info "${history_file}" "${use_null}"
+		return
+	elif [[ ${edit} == true ]]; then
+		check_conflicting_arguments edit @keywords bare delete ignore-case last match-words \
+				negate null regex save unique
+		edit_history_file "${history_file}"
+		return
+	elif [[ ${negate_final} == true ]]; then
+		[[ ${keywords+.} ]] || die "Negate mode requires keywords to be specified."
 	fi
 
 	[[ -e ${history_file} ]] || die "History file doesn't exist: ${history_file}"
-	[[ -f ${history_file} ]] || die "Histroy file not a file: ${history_file}"
-	[[ -r ${history_file} ]] || die "Histroy file not readable: ${history_file}"
+	[[ -f ${history_file} ]] || die "History file not a file: ${history_file}"
+	[[ -r ${history_file} ]] || die "History file not readable: ${history_file}"
 
-	if [[ ${delete_mode} == true ]]; then
-		gawk_args=(-i inplace -v delete_mode=1)
+	if [[ ${save_mode} == true ]]; then
+		check_conflicting_arguments save bare delete last null
+		gawk_args=(-i inplace -v save_mode=1)
+	elif [[ ${delete_mode} == true ]]; then
+		check_conflicting_arguments delete bare last null unique
 		[[ ${keywords+.} ]] || die "Delete mode requires keywords to be specified."
+		gawk_args=(-i inplace -v delete_mode=1)
 	fi
 
-	[[ ${ignore_case} == true ]] && gawk_args+=(-v ignore_case=1)
-	[[ ${regex_mode} == true ]] && gawk_args+=(-v regex_mode=1)
-	[[ ${word_mode} == true ]] && gawk_args+=(-v word_mode=1)
+	for var in bare_mode ignore_case last_only negate_final regex_mode unique_mode use_null \
+			word_mode; do
+		[[ ${!var} == true ]] && gawk_args+=(-v "${var}=1")
+	done
 
 	exec gawk "${gawk_args[@]}" '
 		BEGIN {
@@ -177,28 +249,51 @@ function main {
 				}
 
 				ARGC = 2
-			} else {
+			} else
 				show_all = 1
-			}
 
 			if (ignore_case && regex_mode)
 				IGNORECASE = 1
+
+			if (use_null)
+				ORS = "\0"
 		}
 
-		/^#([[:digit:]]+$)/ {
-			timestamp = $0
-			next
+		function print_cmd(cmd, timestamp) {
+			if (delete_mode || !unique_mode || !seen[cmd]++) {
+				if (delete_mode || save_mode) {
+					if (timestamp)
+						printf "%s%s", timestamp, ORS
+
+					printf "%s%s", cmd, ORS
+				} else if (bare_mode)
+					printf "%s%s", cmd, ORS
+				else if (timestamp)
+					printf "%5d  [%s] %s%s", ++counter, strftime("%F %T %z", substr(timestamp, 2)),
+							cmd, ORS
+				else
+					printf "%5d  %s%s", ++counter, cmd, ORS
+			}
 		}
 
 		{
+			if (next_timestamp) {
+				timestamp = next_timestamp
+				next_timestamp = ""
+			}
+
+			if (/^#[[:digit:]]+$/) {
+				timestamp = $0
+				next
+			}
+
 			cmd = $0
-			next_timestamp = ""
 
 			if (timestamp) {
 				lastRT = RT
 
 				while (getline > 0) {
-					if (/^#([[:digit:]]+$)/) {
+					if (/^#[[:digit:]]+$/) {
 						next_timestamp = $0
 						break
 					}
@@ -208,7 +303,7 @@ function main {
 				}
 			}
 
-			if (cmd !~ /^\s*(#|hist\s*)/) {
+			if (save_mode || delete_mode || cmd !~ /^\s*(#|hist\s*)/) {
 				if (!show_all) {
 					if (word_mode) {
 						patsplit(cmd, a, /\w+/)
@@ -240,6 +335,8 @@ function main {
 
 						if (negate[i])
 							found = !found
+						if (negate_final)
+							found = !found
 						if (delete_mode)
 							found = !found
 						if (!found)
@@ -247,21 +344,17 @@ function main {
 					}
 				}
 
-				if (delete_mode) {
-					if (timestamp)
-						printf "%s%s", timestamp, ORS
-
-					printf "%s%s", cmd, ORS
-				} else {
-					if (timestamp)
-						printf "%5d  [%s] %s%s" , ++counter, strftime("%F %T %z", substr(timestamp, 2)),
-								cmd, ORS
-					else
-						printf "%5d  %s%s", ++counter, cmd, ORS
-				}
+				if (last_only) {
+					last_cmd = cmd
+					last_timestamp = timestamp
+				} else
+					print_cmd(cmd, timestamp)
 			}
+		}
 
-			timestamp = next_timestamp
+		END {
+			if (last_only && length(last_cmd))
+				print_cmd(last_cmd, last_timestamp)
 		}
 	' "${history_file}" "${keywords[@]}"
 }
